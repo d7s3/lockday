@@ -2075,7 +2075,7 @@ function renderPhotoChips() {
   $("#cam").hidden = !canImages; $("#ws-cam").hidden = !canImages;
   renderParse(); renderWsParse();
 }
-const aiErrText = e => ({ rate_limited: "وصلت حد الاستخدام مؤقتاً، جرّب بعد شوي.", not_granted: "ما سمحت للأداة تستخدم Claude.", image_rejected: "ما قدرت أقرأ الصورة، جرّب صورة أوضح.", images_unavailable: "قراءة الصور غير متاحة هنا." }[e && e.code] || "ما اكتملت، جرّب مرة ثانية.");
+const aiErrText = e => ({ rate_limited: "وصلت حد الاستخدام مؤقتاً، جرّب بعد شوي.", not_granted: S.standalone ? "مفتاح API غير صحيح أو منتهي. راجع الإعدادات ← الذكاء." : "ما سمحت للأداة تستخدم Claude.", invalid_request: "الطلب مرفوض من الخدمة. جرّب موديل ثاني من الإعدادات.", image_rejected: "ما قدرت أقرأ الصورة، جرّب صورة أوضح.", images_unavailable: "قراءة الصور غير متاحة هنا." }[e && e.code] || "ما اكتملت، جرّب مرة ثانية.");
 
 /* day plan */
 function planPrompt() {
