@@ -657,7 +657,8 @@ label.btn{cursor:pointer}
 .coach-meta{font-size:12.5px;color:var(--muted);margin:0}
 
 
-.stabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.stabs{display:flex;flex-wrap:wrap;gap:6px;padding-bottom:2px}
+html{overflow-anchor:none}
 .stabs::-webkit-scrollbar{display:none}
 .stabs button{flex:none;border:1px solid var(--line);background:var(--bg2);border-radius:99px;padding:6px 14px;font-weight:600;font-size:14px}
 .stabs button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
@@ -780,12 +781,12 @@ label.btn{cursor:pointer}
 <style id="area-css"></style>
 <div class="app" dir="rtl" lang="ar">
   <header class="hero" id="hero"><div class="sky" id="sky" aria-hidden="true"></div><div class="hero-in" id="hero-in"></div></header>
+  <div id="settings"></div>
   <nav class="switch" id="switch" aria-label="القسم"></nav>
   <div id="std"></div>
   <div id="banner"></div>
   <div class="view" id="me-view">
   <section class="pulse card" id="pulse" aria-label="وقت العمل"></section>
-  <div id="settings"></div>
   <section class="compose" aria-label="إدخال">
     <div class="box" id="box">
       <textarea id="dictate" rows="3" aria-label="مهامك" autocomplete="off"></textarea>
@@ -1674,6 +1675,11 @@ function subAdd(id, text) {
   wsEdit(id, { subs: [...(t.subs || []), { id: newId(), t: text.slice(0, 120), d: false }] }, "edit");
 }
 function subSet(id, fn) { const t = S.ws.tasks[id]; if (t) wsEdit(id, { subs: fn((t.subs || []).map(x => Object.assign({}, x))) }, "edit"); }
+function showSettingsSheet() {
+  const el = $("#settings"); if (!el) return;
+  const go = () => { const y = Math.max(0, el.getBoundingClientRect().top + window.scrollY - 10); window.scrollTo(0, y); };
+  go(); requestAnimationFrame(go); setTimeout(go, 120);
+}
 function collectSettings() {
   const s = clone(S.settings); s.order = AREAS.slice(); s.prefs = Object.assign(clone(DEFAULT_SETTINGS.prefs), s.prefs || {});
   AREAS.forEach(k => { const n = $("#set-name-" + k), b = $("#set-br-" + k); if (n && n.value.trim()) s.areas[k].name = n.value.trim().slice(0, 40); if (b) s.areas[k].branches = b.value.split(/[،,]/).map(x => x.trim()).filter(Boolean); });
@@ -2719,7 +2725,7 @@ function renderStdCard() {
 }
 
 const REGIONS = [["#std", renderStdCard], ["#agent", renderAgent], ["#boards", renderBoards], ["#log", renderLog], ["#forgot", renderForgot], ["#assist", renderAssist], ["#ws-report", renderWsReport], ["#ws-inbox", renderWsInbox], ["#ws-kpi", renderWsKpi], ["#ws-dash", renderWsDash], ["#switch", renderSwitch], ["#banner", renderBanner], ["#ws-head", renderWsHead], ["#ws-members", renderWsMembers], ["#ws-for", renderWsFor], ["#ws-tasks", renderWsTasks], ["#ws-activity", renderWsActivity], ["#settings", renderSettings], ["#hero-in", renderHero], ["#pulse", renderPulse], ["#running", renderRunning], ["#meetings", renderMeetings], ["#tabs", renderTabs], ["#big", renderLists], ["#ai", renderAI], ["#done", renderDone]];
-const ME_REGIONS = new Set(["#std", "#agent", "#boards", "#log", "#forgot", "#settings", "#assist", "#pulse", "#running", "#meetings", "#tabs", "#big", "#ai", "#done"]);
+const ME_REGIONS = new Set(["#std", "#agent", "#boards", "#log", "#forgot", "#assist", "#pulse", "#running", "#meetings", "#tabs", "#big", "#ai", "#done"]);
 function render() {
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && ae.id !== "dictate" && ae.id !== "ws-dictate";
   const v = V();
@@ -2953,12 +2959,15 @@ document.addEventListener("click", e => {
   if (act === "done") { const r = b.getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2); try { navigator.vibrate && navigator.vibrate(12); } catch (er) {} }
   if (VT_ACTS.has(act)) vt(() => onAct(b)); else onAct(b);
 });
+const SETTINGS_ACTS = new Set(["settings", "set-save", "stab", "std-setup", "area-add", "area-hue", "area-del", "area-del-yes", "area-del-no", "skin", "font", "motion", "wday", "ws-save", "ws-panel"]);
 function onAct(b) {
   const act = b.dataset.act, id = b.dataset.id, scope = b.dataset.scope, v = b.dataset.v;
+  // iOS keeps focus in a text field when a button is tapped; the page skips redraws while typing, so release it first
+  if (SETTINGS_ACTS.has(act)) { const ae = document.activeElement; if (ae && ae !== document.body && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && ae.blur) ae.blur(); }
   switch (act) {
-    case "settings": if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); S.showSettings = !S.showSettings; S.confirmArea = null; render(); break;
+    case "settings": if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); S.showSettings = !S.showSettings; S.confirmArea = null; render(); if (S.showSettings) showSettingsSheet(); break;
     case "set-save": { if (S.standalone) applyStdKey(); const s = collectSettings(); s.named = true; S.settings = mergeSettings(s); saveSettings(); S.showSettings = false; render(); break; }
-    case "std-setup": S.showSettings = true; S.stab = "ai"; render(); setTimeout(() => { const k = $("#api-key"); if (k) k.focus(); }, 50); break;
+    case "std-setup": S.showSettings = true; S.stab = "ai"; render(); showSettingsSheet(); break;
     case "stab": { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); if (S.standalone && $("#api-key")) applyStdKey(); const s = collectSettings(); S.settings = mergeSettings(s); S.stab = v; renderSettings(); break; }
     case "area-add": {
       const s = collectSettings(); if (s.order.length >= 8) break;
