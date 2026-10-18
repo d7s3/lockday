@@ -774,6 +774,21 @@ html{overflow-anchor:none}
 .hints::-webkit-scrollbar{display:none}
 .hints .chip{flex:none}
 
+
+/* manual add: plus buttons and the new-item form */
+.plus{width:44px;height:44px;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--ink);flex:none;font-size:0}
+.plus svg{width:22px;height:22px}
+.sec-h .addbtn{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:4px 12px;font-size:13.5px;font-weight:600;display:inline-flex;align-items:center;gap:5px;color:var(--muted)}
+.sec-h .addbtn svg{width:15px;height:15px}
+.sec-h .addbtn:active{background:var(--bg2)}
+.sec-h .right{display:flex;align-items:center;gap:8px}
+.bhead .addbtn{border:1px solid oklch(100% 0 0/.25);background:oklch(100% 0 0/.1);color:#fff;border-radius:99px;padding:4px 11px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:5px}
+.bhead .addbtn svg{width:14px;height:14px}
+.bhead .right{display:flex;align-items:center;gap:8px}
+.review.manual{border-color:var(--line)}
+.review.manual .review-h h2{font-size:18px}
+.empty .row-opts{justify-content:center;margin-top:4px}
+
 ::view-transition-group(*){animation-duration:.38s;animation-timing-function:var(--ease)}
 @media (prefers-reduced-motion:reduce){*,*::before{animation:none!important;transition:none!important}}
 </style>
@@ -793,7 +808,8 @@ html{overflow-anchor:none}
       <div class="box-foot">
         <span class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
         <span class="foot-acts"><label class="cam" id="cam" hidden aria-label="صورة قائمة أو سبورة"><input type="file" id="cam-in" accept="image/*" hidden><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.5"/></svg></label>
-        <button class="send" id="send" aria-label="رتّب" disabled>
+        <button class="plus" data-act="add" aria-label="أضف يدوياً"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button class="send" id="send" aria-label="رتّب بالذكاء" disabled>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg>
         </button></span>
       </div>
@@ -827,7 +843,8 @@ html{overflow-anchor:none}
         <textarea id="ws-dictate" rows="2" aria-label="مهام الفريق" autocomplete="off"></textarea>
         <div class="box-foot"><span class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
           <span class="foot-acts"><label class="cam" id="ws-cam" hidden aria-label="صورة قائمة أو سبورة"><input type="file" id="ws-cam-in" accept="image/*" hidden><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.5"/></svg></label>
-          <button class="send ws" id="ws-send" aria-label="وزّعها" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg></button></span></div>
+          <button class="plus" data-act="ws-add" aria-label="أضف يدوياً"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+          <button class="send ws" id="ws-send" aria-label="وزّعها بالذكاء" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg></button></span></div>
       </div>
       <div id="ws-photo-chip"></div>
       <div class="pstatus" id="ws-pstatus" aria-live="polite"></div>
@@ -983,7 +1000,7 @@ Object.assign(S, { view: savedView, isOwner: null, myId: null, profiles: {}, onl
   ws: { tasks: {}, members: {}, comments: {}, meta: { name: "ورك سبيس", teams: [] }, ready: false, mready: false }, wsDay: "",
   wsSel: null, wsMEdit: null, wsConfirmM: null, wsExpanded: null, wsConfirm: null, wsStatus: "open", wsMember: null, wsTeam: "",
   photo: null, wsPhoto: null, pendingWrites: 0, q: "", restore: null, focus: (() => { try { return localStorage.getItem("daftar:focus") === "1"; } catch (e) { return false; } })(), standalone: !(window.claude && typeof window.claude.use === "function"), chat: (() => { try { const c = JSON.parse(localStorage.getItem("daftar:chat") || "[]"); return Array.isArray(c) ? c.filter(m => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string").slice(-16) : []; } catch (e) { return []; } })(), agentBusy: false, agentErr: "", agentDraft: "", bTab: (() => { try { return localStorage.getItem("daftar:btab") || "day"; } catch (e) { return "day"; } })(), bDay: "", wallBusy: false, hist: null, logDay: "", coach: null, coachText: "", coachBusy: false, coachErr: "", plan: null, planBusy: false, planErr: "", weekText: "", weekBusy: false, weekErr: "", wsRep: "", wsRepBusy: false, wsRepErr: "",
-  wsFor: [], wsReview: null, wsReviewNote: "", wsParse: { state: "idle" }, wsPanel: false, joining: false });
+  reviewManual: false, wsReviewManual: false, wsFor: [], wsReview: null, wsReviewNote: "", wsParse: { state: "idle" }, wsPanel: false, joining: false });
 
 /* ---------- persistence ---------- */
 const queues = {};
@@ -1444,12 +1461,28 @@ function renderParse() {
   else el.innerHTML = "";
   $("#send").disabled = busy || (!$("#dictate").value.trim() && !S.photo);
 }
+function blankEntry(pre) {
+  pre = pre || {};
+  const kind = pre.kind === "meeting" ? "meeting" : "task";
+  return { kind, title: String(pre.title || "").trim(), area: AREAS.includes(pre.area) ? pre.area : defArea(), branch: "",
+    size: pre.size === "big" ? "big" : "small", days: kind === "task" ? (pre.days || []) : [], repeat: [],
+    date: kind === "meeting" ? (pre.date || defaultMeetingDate("")) : "", time: "", duration: meetDur(), place: "", ai: "" };
+}
+function manualAdd(pre) {
+  if (parseCtl) { try { parseCtl.abort(); } catch (e) {} parseCtl = null; }
+  clearTimeout(slowTimer); S.parse = { state: "idle", msg: "" };
+  S.review = [blankEntry(pre)]; S.reviewManual = true; S.reviewNote = "";
+  renderParse(); renderReview();
+  const el = $("#review"); if (el) { const y = Math.max(0, el.getBoundingClientRect().top + window.scrollY - 70); window.scrollTo(0, y); }
+  setTimeout(() => { const t = $("#rv-0-title"); if (t) { t.focus(); t.select(); } }, 60);
+}
 function renderReview() {
   const el = $("#review"), R = S.review;
   if (!R) { el.innerHTML = ""; return; }
   if (!R.length) { el.innerHTML = `<div class="review card"><p class="hint">ما طلع لي شي من الكلام. جرّب تعيد صياغته.</p><div><button class="btn" data-act="rv-cancel">إغلاق</button></div></div>`; return; }
-  el.innerHTML = `<div class="review card" role="region" aria-label="مراجعة قبل الإضافة">
-    <div class="review-h">${artHeard()}<div><h2>هذا اللي فهمته</h2><p>${esc(S.reviewNote || `${countWord(R.length, "عنصر", "عنصرين", "عناصر")}. عدّل اللي تبيه ثم أضف.`)}</p></div></div>
+  const man = !!S.reviewManual;
+  el.innerHTML = `<div class="review card${man ? " manual" : ""}" role="region" aria-label="${man ? "عنصر جديد" : "مراجعة قبل الإضافة"}">
+    <div class="review-h">${man ? artSpark() : artHeard()}<div><h2>${man ? (R[0] && R[0].kind === "meeting" ? "اجتماع جديد" : "مهمة جديدة") : "هذا اللي فهمته"}</h2><p>${esc(man ? "عبّي اللي تبيه واضغط أضف." : (S.reviewNote || `${countWord(R.length, "عنصر", "عنصرين", "عناصر")}. عدّل اللي تبيه ثم أضف.`))}</p></div></div>
     ${R.map((r, i) => {
       const sc = "rv:" + i;
       return `<div class="rv" data-area="${r.area}">
@@ -1461,7 +1494,7 @@ function renderReview() {
         ${r.kind === "task" ? `<div class="row-opts">${sizeSeg(sc, r.size)}</div>${scheduleBlock(sc, r)}` : meetingFields(sc, r, `rv-${i}`)}
         <div class="row-opts">${aiSelect(sc, r.ai, `rv-${i}-ai`)}</div>
       </div>`; }).join("")}
-    <div class="row-opts"><button class="btn grad" data-act="rv-add">أضف</button><button class="btn" data-act="rv-cancel">إلغاء</button></div>
+    <div class="row-opts"><button class="btn grad" data-act="rv-add">أضف</button><button class="btn" data-act="rv-cancel">إلغاء</button>${man && R.length < 12 ? `<button class="btn" data-act="rv-more">+ عنصر ثاني</button>` : ""}</div>
   </div>`;
 }
 
@@ -1554,7 +1587,9 @@ function renderMeetings() {
   const t = todayIso();
   const ms = openItems().filter(it => it.kind === "meeting" && (!it.date || it.date >= t) && matchQ(it) && (!S.focus || it.date === t))
     .sort((a, b) => (a.date || "0").localeCompare(b.date || "0") || (a.time || "99").localeCompare(b.time || "99"));
-  $("#meetings").innerHTML = ms.length ? `<div class="sec-h"><h2>${artCal()}الاجتماعات القادمة</h2><span class="c num">${ms.length}</span></div><ul class="tickets">${ms.map(meetingRow).join("")}</ul>` : "";
+  if (!S.ready || (!ms.length && S.q)) { $("#meetings").innerHTML = ""; return; }
+  $("#meetings").innerHTML = `<div class="sec-h"><h2>${artCal()}الاجتماعات القادمة</h2><span class="right"><button class="addbtn" data-act="add" data-kind="meeting"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> اجتماع</button>${ms.length ? `<span class="c num">${ms.length}</span>` : ""}</span></div>` +
+    (ms.length ? `<ul class="tickets">${ms.map(meetingRow).join("")}</ul>` : `<div class="card empty-mini">ما فيه اجتماعات قادمة</div>`);
 }
 function renderTabs() {
   const tasks = openTasks(), n = k => k === "all" ? tasks.length : tasks.filter(it => it.area === k).length;
@@ -1565,17 +1600,17 @@ function renderTabs() {
 function renderLists() {
   if (!S.ready) { $("#big").innerHTML = `<div class="card empty-mini">يفتح دفترك…</div>`; $("#small").innerHTML = ""; return; }
   if (!Object.keys(S.items).length) {
-    $("#big").innerHTML = `<div class="card empty">${artEmpty()}<b>دفترك فاضي</b><p>اضغط المايك في الكيبورد وقل وش عندك، مثل: «بكرة أراجع عرض العميل، والأحد اجتماع مع الفريق الساعة عشر، وكل خميس أرسل تقرير الأسبوع».</p></div>`;
+    $("#big").innerHTML = `<div class="card empty">${artEmpty()}<b>دفترك فاضي</b><p>أضف مهامك بنفسك، أو املِ كل شي بصوتك مرة وحدة ويرتّبه لك Claude.</p><div class="row-opts"><button class="btn primary" data-act="add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> أضف مهمة</button><button class="btn" data-act="add" data-kind="meeting"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> اجتماع</button></div></div>`;
     $("#small").innerHTML = ""; return;
   }
   const tF = todayIso();
   const tasks = openTasks().filter(it => (S.filter === "all" || it.area === S.filter) && matchQ(it) && (!S.focus || ["late", "today"].includes(taskStatus(it, tF).k)));
   const big = sortTasks(tasks.filter(it => it.size === "big")), small = sortTasks(tasks.filter(it => it.size !== "big"));
-  const sec = (art, title, rows) => `<div class="sec-h"><h2>${art}${title}</h2><span class="c num">${rows.length}</span></div>` +
+  const sec = (art, title, rows, size) => `<div class="sec-h"><h2>${art}${title}</h2><span class="right"><button class="addbtn" data-act="add" data-size="${size}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> أضف</button><span class="c num">${rows.length}</span></span></div>` +
     (rows.length ? `<ul class="list card">${rows.map(r => taskRow(r.it, r.st)).join("")}</ul>` : `<div class="card empty-mini">ما فيه شي هنا</div>`);
   if (S.focus && !big.length && !small.length) { $("#big").innerHTML = `<div class="card empty-mini">ما عندك شي متأخر ولا شي لليوم. استمتع بيومك، أو اطلع من وضع التركيز.</div>`; $("#small").innerHTML = ""; return; }
-  $("#big").innerHTML = (S.focus ? `<p class="focus-note">وضع التركيز: المتأخر ومهام اليوم بس</p>` : "") + (S.q ? `<p class="focus-note">نتائج البحث عن «${esc(S.q)}»: ${big.length + small.length}</p>` : "") + sec(artStack(), "مهام كبيرة", big);
-  $("#small").innerHTML = sec(artPebbles(), "مهام صغيرة", small);
+  $("#big").innerHTML = (S.focus ? `<p class="focus-note">وضع التركيز: المتأخر ومهام اليوم بس</p>` : "") + (S.q ? `<p class="focus-note">نتائج البحث عن «${esc(S.q)}»: ${big.length + small.length}</p>` : "") + sec(artStack(), "مهام كبيرة", big, "big");
+  $("#small").innerHTML = sec(artPebbles(), "مهام صغيرة", small, "small");
 }
 function renderAI() {
   const list = openItems().filter(it => it.ai).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
@@ -1782,7 +1817,7 @@ function wsLocalParse(text) {
 let wsCtl = null, wsSlow = null;
 function wsFinish(items, note) {
   clearTimeout(wsSlow); wsCtl = null;
-  S.wsReview = items; S.wsReviewNote = note || ""; S.wsParse = { state: "idle" };
+  S.wsReview = items; S.wsReviewManual = false; S.wsReviewNote = note || ""; S.wsParse = { state: "idle" };
   renderWsParse(); renderWsReview();
 }
 function wsFallback(note) {
@@ -1809,6 +1844,13 @@ async function wsSend() {
     wsFallback("ما قدرت أفهمها بـ Claude هالمرة، فرتّبتها بطريقة بسيطة. راجعها قبل الإضافة.");
   }
 }
+function wsManualAdd() {
+  if (wsCtl) { try { wsCtl.abort(); } catch (e) {} wsCtl = null; }
+  clearTimeout(wsSlow); S.wsParse = { state: "idle" };
+  S.wsReview = [{ title: "", assignees: S.wsFor.slice(), due: "", team: S.wsTeam || "", priority: "normal" }]; S.wsReviewManual = true; S.wsReviewNote = "";
+  renderWsParse(); renderWsReview();
+  setTimeout(() => { const t = $("#wr-0-title"); if (t) t.focus(); }, 60);
+}
 function wsAddReview() {
   const me = myMid();
   (S.wsReview || []).forEach(r => {
@@ -1818,7 +1860,7 @@ function wsAddReview() {
     S.ws.tasks[id] = t; wsWrite("wsTasks", id, t, "set");
   });
   const n = (S.wsReview || []).length;
-  S.wsReview = null; S.wsFor = []; $("#ws-dictate").value = "";
+  S.wsReview = null; S.wsReviewManual = false; S.wsFor = []; $("#ws-dictate").value = "";
   renderWsParse(); renderWsReview(); render();
   if (n) showToast(`انضافت ${countWord(n, "مهمة", "مهمتين", "مهام")} للفريق`, null);
 }
@@ -1916,7 +1958,7 @@ function renderWsReview() {
   if (!R.length) { el.innerHTML = `<div class="review card"><p class="hint">ما طلع لي شي من الكلام.</p><div><button class="btn" data-act="wr-cancel">إغلاق</button></div></div>`; return; }
   const teams = S.ws.meta.teams || [];
   el.innerHTML = `<div class="review card" data-area="ws">
-    <div class="review-h">${artHeard()}<div><h2>مهام الفريق</h2><p>${esc(S.wsReviewNote || "راجع المكلّفين والمواعيد ثم أضف.")}</p></div></div>
+    <div class="review-h">${S.wsReviewManual ? artSpark() : artHeard()}<div><h2>${S.wsReviewManual ? "مهمة جديدة للفريق" : "مهام الفريق"}</h2><p>${esc(S.wsReviewManual ? "عبّي اللي تبيه واضغط أضف." : (S.wsReviewNote || "راجع المكلّفين والمواعيد ثم أضف."))}</p></div></div>
     ${R.map((r, i) => `<div class="rv" data-area="ws">
       <div class="rv-top">${tile({ title: r.title, id: "w", area: "ws" })}<input class="field" id="wr-${i}-title" data-rf="title" data-ri="${i}" value="${esc(r.title)}" aria-label="العنوان"><button class="x" data-act="wr-remove" data-v="${i}" aria-label="شيل">×</button></div>
       <span class="lbl">مين يسويها؟</span>${pickList(r.assignees, "wr-pick", `data-i="${i}"`)}
@@ -1975,7 +2017,7 @@ function renderWsTasks() {
     return (b.priority === "high") - (a.priority === "high") || r(da) - r(dbb) || (a.due || "9").localeCompare(b.due || "9") || (b.updatedAt || 0) - (a.updatedAt || 0);
   });
   const mf = S.wsMember && S.ws.members[S.wsMember];
-  $("#ws-tasks").innerHTML = `<div class="sec-h"><h2>${artStack()}مهام الفريق</h2><span class="c num">${cnt.open}</span></div>
+  $("#ws-tasks").innerHTML = `<div class="sec-h"><h2>${artStack()}مهام الفريق</h2><span class="right"><button class="addbtn" data-act="ws-add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> أضف</button><span class="c num">${cnt.open}</span></span></div>
     <div class="strip ws-days" role="group" aria-label="صفّ حسب اليوم">${strip}</div>
     <div class="row-opts" style="margin-bottom:10px"><span class="seg ws-seg">${[["open", "المفتوحة"], ["todo", "للعمل"], ["doing", "جاري"], ["done", "تم"]].map(([k, l]) => `<button data-act="ws-filter" data-v="${k}" aria-pressed="${f === k}">${l} <span class="num">${cnt[k] || 0}</span></button>`).join("")}</span>
       ${mf ? `<span class="for-chip">${avatar(mf)}${esc(memberName(mf))}<button class="x" data-act="ws-member-clear" aria-label="إلغاء التصفية">×</button></span>` : ""}</div>
@@ -2442,7 +2484,7 @@ function agendaRow(x, d) {
 function boardDay() {
   const d = bDay(), list = itemsOn(d), unset = openTasks().filter(it => taskStatus(it, todayIso()).k === "unset").slice(0, 5);
   return `${weekStrip(d)}<div class="bcard">
-    <div class="bhead"><b>${esc(fmtDay(d))}</b><span class="bcount num">${list.filter(x => x.k !== "done").length}</span></div>
+    <div class="bhead"><b>${esc(fmtDay(d))}</b><span class="right"><button class="addbtn" data-act="add" data-day="${d}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> أضف</button><span class="bcount num">${list.filter(x => x.k !== "done").length}</span></span></div>
     ${list.length ? list.map(x => agendaRow(x, d)).join("") : `<p class="bempty">${d === todayIso() ? "ما عندك شي محدد لليوم" : "ما فيه شي في هذا اليوم"}</p>`}
     ${unset.length && d === todayIso() ? `<div class="bdiv"></div>${unset.map(it => `<div class="arow"><span class="atime"></span><button class="acheck" data-area="${it.area}" data-act="b-done" data-id="${it.id}" aria-label="تم"></button><span class="atitle dim">${esc(it.title)}</span><button class="btn sm ghost" data-act="fg" data-id="${it.id}" data-v="0">اليوم</button></div>`).join("")}` : ""}
   </div>`;
@@ -2845,7 +2887,7 @@ function localParse(text) {
 let parseCtl = null, slowTimer = null;
 function finishParse(items, note) {
   clearTimeout(slowTimer); parseCtl = null;
-  S.review = items; S.reviewNote = note || ""; S.parse = { state: "idle", msg: "" };
+  S.review = items; S.reviewManual = false; S.reviewNote = note || ""; S.parse = { state: "idle", msg: "" };
   renderParse(); renderReview();
   const first = document.getElementById("rv-0-title"); if (first) first.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
@@ -2879,7 +2921,7 @@ async function onSend() {
 }
 function addReview() {
   (S.review || []).forEach(createItem);
-  S.review = null; S.reviewNote = ""; $("#dictate").value = "";
+  S.review = null; S.reviewManual = false; S.reviewNote = ""; $("#dictate").value = "";
   renderReview(); renderParse(); render();
 }
 
@@ -2991,7 +3033,9 @@ function onAct(b) {
     case "wday": { const s = collectSettings(); const d = +v, w = WORK_DAYS().slice(), i = w.indexOf(d); i >= 0 ? w.splice(i, 1) : w.push(d); if (w.length && w.length < 7) s.prefs.workDays = w.sort(); S.settings = mergeSettings(s); saveSettings(); renderSettings(); break; }
     case "fallback": useFallback(); break;
     case "rv-remove": S.review.splice(+v, 1); renderReview(); break;
-    case "rv-cancel": S.review = null; S.reviewNote = ""; renderReview(); break;
+    case "rv-cancel": S.review = null; S.reviewManual = false; S.reviewNote = ""; renderReview(); break;
+    case "rv-more": { S.review = [...(S.review || []), blankEntry({ area: (S.review[S.review.length - 1] || {}).area })]; renderReview(); setTimeout(() => { const t = $("#rv-" + (S.review.length - 1) + "-title"); if (t) t.focus(); }, 60); break; }
+    case "add": manualAdd({ kind: b.dataset.kind, size: b.dataset.size, days: b.dataset.day ? [b.dataset.day] : [], date: b.dataset.day || "", area: b.dataset.v }); break;
     case "rv-add": addReview(); break;
     case "area": case "size": if (setVal(scope, act, v) === "rv") renderReview(); break;
     case "day": {
@@ -3061,7 +3105,8 @@ function onAct(b) {
     case "ws-team": S.wsTeam = v; render(); break;
     case "ws-member-clear": S.wsMember = null; render(); break;
     case "wr-remove": S.wsReview.splice(+v, 1); renderWsReview(); break;
-    case "wr-cancel": S.wsReview = null; renderWsReview(); break;
+    case "wr-cancel": S.wsReview = null; S.wsReviewManual = false; renderWsReview(); break;
+    case "ws-add": wsManualAdd(); break;
     case "wr-add": wsAddReview(); break;
     case "wr-pick": { const r = S.wsReview[+b.dataset.i]; const a = r.assignees || []; r.assignees = a.includes(v) ? a.filter(x => x !== v) : [...a, v]; renderWsReview(); break; }
     case "wr-pri": S.wsReview[+b.dataset.i].priority = v; renderWsReview(); break;
