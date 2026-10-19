@@ -1038,7 +1038,7 @@ let savedView = "me"; try { savedView = localStorage.getItem("daftar:view") || "
 Object.assign(S, { view: savedView, isOwner: null, myId: null, profiles: {}, online: new Set(),
   ws: { tasks: {}, members: {}, comments: {}, meta: { name: "ورك سبيس", teams: [] }, ready: false, mready: false }, wsDay: "",
   wsSel: null, wsMEdit: null, wsConfirmM: null, wsExpanded: null, wsConfirm: null, wsStatus: "open", wsMember: null, wsTeam: "",
-  photo: null, wsPhoto: null, pendingWrites: 0, q: "", restore: null, focus: (() => { try { return localStorage.getItem("daftar:focus") === "1"; } catch (e) { return false; } })(), standalone: !(window.claude && typeof window.claude.use === "function"), chat: (() => { try { const c = JSON.parse(localStorage.getItem("daftar:chat") || "[]"); return Array.isArray(c) ? c.filter(m => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string").slice(-16) : []; } catch (e) { return []; } })(), agentBusy: false, agentErr: "", agentDraft: "", bTab: (() => { try { return localStorage.getItem("daftar:btab") || "day"; } catch (e) { return "day"; } })(), bDay: "", wallBusy: false, hist: null, logDay: "", coach: null, coachText: "", coachBusy: false, coachErr: "", plan: null, planBusy: false, planErr: "", weekText: "", weekBusy: false, weekErr: "", wsRep: "", wsRepBusy: false, wsRepErr: "",
+  photo: null, wsPhoto: null, pendingWrites: 0, q: "", restore: null, focus: (() => { try { return localStorage.getItem("daftar:focus") === "1"; } catch (e) { return false; } })(), standalone: !(window.claude && typeof window.claude.use === "function"), dbKnown: false, whoKnown: false, ownStore: true, sharedOk: false, canShared: null, chat: (() => { try { const c = JSON.parse(localStorage.getItem("daftar:chat") || "[]"); return Array.isArray(c) ? c.filter(m => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string").slice(-16) : []; } catch (e) { return []; } })(), agentBusy: false, agentErr: "", agentDraft: "", bTab: (() => { try { return localStorage.getItem("daftar:btab") || "day"; } catch (e) { return "day"; } })(), bDay: "", wallBusy: false, hist: null, logDay: "", coach: null, coachText: "", coachBusy: false, coachErr: "", plan: null, planBusy: false, planErr: "", weekText: "", weekBusy: false, weekErr: "", wsRep: "", wsRepBusy: false, wsRepErr: "",
   listening: "", heard: "", speaking: false, voiceErr: "", reviewManual: false, wsReviewManual: false, wsFor: [], wsReview: null, wsReviewNote: "", wsParse: { state: "idle" }, wsPanel: false, joining: false });
 
 /* ---------- persistence ---------- */
@@ -1052,15 +1052,15 @@ function enqueue(key, fn) {
   queues[key] = p; return p;
 }
 function saveLocal() {
-  if (S.mode !== "local") return;
+  if (S.mode !== "local" && S.ownStore) return;
   try { localStorage.setItem("daftar:data", JSON.stringify({ items: S.items, timer: S.timer, settings: S.settings, plan: S.plan, hist: S.hist, coach: S.coach, ws: { tasks: S.ws.tasks, members: S.ws.members, comments: S.ws.comments, meta: S.ws.meta } })); } catch (e) {}
 }
 function saveItem(id) {
-  if (!db) return saveLocal();
+  if (!db || !S.ownStore) return saveLocal();
   enqueue("i:" + id, () => S.items[id] ? db.collection("items").doc(id).set(S.items[id]) : db.collection("items").doc(id).delete());
 }
-function saveTimer() { if (!db) return saveLocal(); enqueue("timer", () => db.doc("state/timer").set(S.timer)); }
-function saveSettings() { if (!db) return saveLocal(); enqueue("settings", () => db.doc("state/settings").set(S.settings)); }
+function saveTimer() { if (!db || !S.ownStore) return saveLocal(); enqueue("timer", () => db.doc("state/timer").set(S.timer)); }
+function saveSettings() { if (!db || !S.ownStore) return saveLocal(); enqueue("settings", () => db.doc("state/settings").set(S.settings)); }
 function edit(id, fn) {
   if (!S.items[id]) return;
   const it = clone(S.items[id]); fn(it); S.items[id] = it; saveItem(id); render();
@@ -1689,7 +1689,7 @@ function renderDone() {
 /* ---------- workspace (ورك سبيس): shared tasks and members ---------- */
 const WS_STATUS = { todo: "للعمل", doing: "جاري", done: "تم" };
 const WS_NEXT = { todo: "doing", doing: "done", done: "todo" };
-const V = () => S.standalone ? "me" : S.isOwner === false ? "ws" : S.view;
+const V = () => (S.standalone || !S.sharedOk) ? "me" : S.view;
 const members = () => Object.values(S.ws.members).filter(Boolean)
   .sort((a, b) => (b.owner ? 1 : 0) - (a.owner ? 1 : 0) || (a.joinedAt || 0) - (b.joinedAt || 0));
 const myMember = () => S.myId ? members().find(m => m.uid === S.myId) || null : null;
@@ -1774,7 +1774,7 @@ function collectSettings() {
 }
 /* writes */
 function wsWrite(col, id, data, mode) {
-  if (!db) return saveLocal();
+  if (!db || !S.sharedOk) return saveLocal();
   enqueue(col + ":" + id, () => mode === "set" ? db.collection(col).doc(id).set(data)
     : mode === "del" ? db.collection(col).doc(id).delete() : db.collection(col).doc(id).update(data));
 }
@@ -1917,7 +1917,7 @@ function wsAddReview() {
 /* ---------- workspace render ---------- */
 function renderSwitch() {
   const el = $("#switch");
-  el.hidden = S.isOwner === false || S.standalone;
+  el.hidden = S.standalone || !S.sharedOk;
   el.dataset.v = V();
   const ms = members().slice(0, 3);
   el.innerHTML = `<button data-act="view" data-v="me" aria-pressed="${V() === "me"}">دفتري</button>
@@ -2220,7 +2220,7 @@ async function runPlan() {
     const blocks = (out && Array.isArray(out.blocks) ? out.blocks : []).filter(b => b && /^\d{1,2}:\d{2}$/.test(b.start) && /^\d{1,2}:\d{2}$/.test(b.end) && b.title)
       .map(b => ({ start: b.start.padStart(5, "0"), end: b.end.padStart(5, "0"), id: String(b.id || ""), title: String(b.title).slice(0, 120) })).slice(0, 24);
     S.plan = { day: todayIso(), blocks, tip: String((out && out.tip) || "").slice(0, 200), at: Date.now() };
-    if (db) enqueue("plan", () => db.doc("state/plan").set(S.plan)); else saveLocal();
+    if (db && S.ownStore) enqueue("plan", () => db.doc("state/plan").set(S.plan)); else saveLocal();
   } catch (e) { S.planErr = aiErrText(e); }
   S.planBusy = false; renderAssist();
 }
@@ -2389,7 +2389,7 @@ function applyRestore() {
 const HIST_DAYS = 120;
 const FLAME = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c.6 3.2 2.3 4.6 4 6.4 1.9 2 3 4 3 6.4A7 7 0 0 1 5 15.3c0-2 .8-3.6 2.1-5 .3 1.4 1 2.3 2.1 2.9-.3-3.6 1-6.6 2.8-10.7z" fill="currentColor"/><path d="M12 21a3.3 3.3 0 0 1-3.3-3.3c0-1.6 1.2-2.5 2.1-3.9.6 1 1.5 1.5 1.8 2.8.3-.5.4-1 .4-1.6 1.3 1 2.3 2.1 2.3 2.7A3.3 3.3 0 0 1 12 21z" style="fill:var(--surface)" opacity=".85"/></svg>';
 const histDoc = () => S.hist || { days: {}, best: 0, total: 0, ms: {} };
-function saveHist() { if (db) enqueue("hist", () => db.doc("state/history").set(S.hist)); else saveLocal(); }
+function saveHist() { if (db && S.ownStore) enqueue("hist", () => db.doc("state/history").set(S.hist)); else saveLocal(); }
 function streakInfo(h) {
   h = h || histDoc(); const t = todayIso();
   const has = d => !!(h.days[d] && h.days[d].n > 0);
@@ -2498,7 +2498,7 @@ async function runCoach() {
   try {
     const { text } = await sample(coachPrompt(), heavy({ cache: false, onText: ({ text }) => { S.coachText = text; const el = document.getElementById("coach-out"); if (el) el.textContent = text; } }));
     S.coachText = text; S.coach = { text, at: Date.now(), day: todayIso() };
-    if (db) enqueue("coach", () => db.doc("state/coach").set(S.coach)); else saveLocal();
+    if (db && S.ownStore) enqueue("coach", () => db.doc("state/coach").set(S.coach)); else saveLocal();
   } catch (e) { S.coachErr = aiErrText(e); }
   S.coachBusy = false; renderAssist();
 }
@@ -3354,9 +3354,11 @@ use("sample").then(async s => {
 use("downloads").then(d => { downloads = d || (S.standalone ? standaloneDownloads : null); renderAssist(); renderWsReport(); renderBoards(); });
 use("user").then(async u => {
   user = u;
-  if (!u) { S.isOwner = true; render(); return; }
+  if (!u) { S.isOwner = true; S.whoKnown = true; bootData(); render(); return; }
   S.isOwner = await u.isOwner(); S.myId = await u.id();
+  try { S.canShared = await u.can("data.write"); } catch (e) { S.canShared = null; }
   try { const me = await u.me(); S.meName = (me && me.name || "").split(" ")[0]; } catch (e) {}
+  S.whoKnown = true; bootData();
   render(); syncProfiles(); ensureMembership();
 });
 use("room").then(r => {
@@ -3370,32 +3372,52 @@ use("room").then(r => {
   }, () => {});
   r.onPeers(ch => { S.online = new Set(ch.peers.filter(pp => pp.kind === "viewer" && pp.by).map(pp => pp.by)); render(); }, () => {});
 });
-use("db").then(d => {
-  db = d;
+use("db").then(d => { db = d; S.dbKnown = true; bootData(); });
+function loadLocal() {
+  try { const o = JSON.parse(localStorage.getItem("daftar:data") || "null"); if (o) { S.items = o.items || {}; S.timer = o.timer || S.timer; S.settings = mergeSettings(o.settings); if (o.plan) S.plan = o.plan; if (o.hist) S.hist = o.hist; if (o.coach) { S.coach = o.coach; S.coachText = o.coach.text || ""; } if (!S.sharedOk && o.ws) { S.ws.tasks = o.ws.tasks || {}; S.ws.members = o.ws.members || {}; S.ws.comments = o.ws.comments || {}; S.ws.meta = Object.assign(S.ws.meta, o.ws.meta || {}); } } } catch (e) {}
+}
+let booted = false;
+function bootData() {
+  if (booted || !S.dbKnown || !S.whoKnown) return;
+  booted = true;
+  // A guest may use the owner's shared workspace, but their own notebook always stays on their device.
+  S.sharedOk = !!db && S.canShared !== false;
+  S.ownStore = !!db && S.isOwner !== false;
+  if (!S.ownStore) {
+    S.mode = "local"; loadLocal(); S.ready = true;
+    if (!S.sharedOk) { S.ws.ready = S.ws.mready = true; }
+    S.banner = S.standalone ? "نسخة الويب: بياناتك محفوظة على هذا الجهاز فقط. نزّل نسخة احتياطية من الإعدادات بين فترة وأخرى."
+      : "هذي نسختك أنت: مهامك محفوظة على هذا الجهاز وما يشوفها غيرك. نزّل نسخة احتياطية من الإعدادات بين فترة وأخرى.";
+  }
+  bootStores();
+}
+function bootStores() {
   if (!db) {
-    S.mode = "local";
-    try { const o = JSON.parse(localStorage.getItem("daftar:data") || "null"); if (o) { S.items = o.items || {}; S.timer = o.timer || S.timer; S.settings = mergeSettings(o.settings); if (o.plan) S.plan = o.plan; if (o.hist) S.hist = o.hist; if (o.coach) { S.coach = o.coach; S.coachText = o.coach.text || ""; } if (o.ws) { S.ws.tasks = o.ws.tasks || {}; S.ws.members = o.ws.members || {}; S.ws.comments = o.ws.comments || {}; S.ws.meta = Object.assign(S.ws.meta, o.ws.meta || {}); } } } catch (e) {}
+    S.mode = "local"; loadLocal();
     S.ws.ready = S.ws.mready = true;
-    S.ready = true; S.banner = S.standalone ? "نسخة الويب: بياناتك محفوظة على هذا الجهاز فقط. نزّل نسخة احتياطية من الإعدادات بين فترة وأخرى." : "الحفظ في حسابك غير متاح في هذا العرض، فالبيانات محفوظة على هذا الجهاز فقط.";
+    S.ready = true; if (!S.banner) S.banner = S.standalone ? "نسخة الويب: بياناتك محفوظة على هذا الجهاز فقط. نزّل نسخة احتياطية من الإعدادات بين فترة وأخرى." : "الحفظ في حسابك غير متاح في هذا العرض، فالبيانات محفوظة على هذا الجهاز فقط.";
     render(); return;
   }
-  S.mode = "db"; syncBadge();
   const lost = () => { S.banner = "انقطع الاتصال بالحفظ. حدّث الصفحة."; render(); };
+  if (S.sharedOk) {
+    const toMapW = snap => { const o = {}; snap.docs.forEach(d => { const x = d.data(); if (x) o[d.id] = Object.assign({}, x, { id: d.id }); }); return o; };
+    db.collection("wsTasks").onSnapshot(snap => { S.ws.tasks = toMapW(snap); S.ws.ready = true; render(); }, lost);
+    db.collection("wsMembers").onSnapshot(snap => { S.ws.members = toMapW(snap); S.ws.mready = true; syncProfiles(); ensureMembership(); render(); }, lost);
+    db.collection("wsComments").onSnapshot(snap => { S.ws.comments = toMapW(snap); render(); }, lost);
+    db.doc("wsMeta/main").onSnapshot(s2 => { if (s2.exists) { S.ws.meta = Object.assign({ name: "ورك سبيس", teams: [] }, s2.data()); render(); } }, lost);
+  } else { S.ws.ready = S.ws.mready = true; }
+  if (!S.ownStore) { render(); return; }
+  S.mode = "db"; syncBadge();
   db.collection("items").onSnapshot(snap => {
     const o = {}; snap.docs.forEach(d => { const x = d.data(); if (x) o[d.id] = Object.assign({}, x, { id: d.id }); });
     S.items = o; S.ready = true; render();
   }, lost);
   db.doc("state/timer").onSnapshot(s => { S.timer = s.exists ? Object.assign({ itemId: null, startedAt: 0 }, s.data()) : { itemId: null, startedAt: 0 }; render(); }, lost);
   db.doc("state/settings").onSnapshot(s => { if (s.exists) { S.settings = mergeSettings(s.data()); render(); } }, lost);
-  const toMap = snap => { const o = {}; snap.docs.forEach(d => { const x = d.data(); if (x) o[d.id] = Object.assign({}, x, { id: d.id }); }); return o; };
-  db.collection("wsTasks").onSnapshot(snap => { S.ws.tasks = toMap(snap); S.ws.ready = true; render(); }, lost);
-  db.collection("wsMembers").onSnapshot(snap => { S.ws.members = toMap(snap); S.ws.mready = true; syncProfiles(); ensureMembership(); render(); }, lost);
   db.doc("state/plan").onSnapshot(s => { S.plan = s.exists ? s.data() : null; renderAssist(); }, lost);
   db.doc("state/history").onSnapshot(s => { S.hist = s.exists ? Object.assign({ days: {}, best: 0, total: 0, ms: {} }, s.data()) : null; renderPulse(); renderLog(); renderHero(); }, lost);
   db.doc("state/coach").onSnapshot(s => { if (s.exists) { S.coach = s.data(); if (!S.coachBusy) S.coachText = S.coach.text || ""; renderAssist(); } }, lost);
-  db.collection("wsComments").onSnapshot(snap => { S.ws.comments = toMap(snap); render(); }, lost);
-  db.doc("wsMeta/main").onSnapshot(s => { if (s.exists) { S.ws.meta = Object.assign({ name: "ورك سبيس", teams: [] }, s.data()); render(); } }, lost);
-});
+}
 })();
 </script>
 
