@@ -325,6 +325,10 @@ details.done li .t{flex:1;min-width:0;text-decoration:line-through;text-decorati
 .area-set{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:16px;background:color-mix(in oklab,var(--a) 7%,var(--surface));border:1px solid color-mix(in oklab,var(--a) 22%,var(--line))}
 .area-set label{display:flex;flex-direction:column;gap:4px}
 .banner{background:var(--bg2);border-radius:14px;padding:10px 12px;font-size:14px;color:var(--muted)}
+.banner.wshint{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:color-mix(in oklab,var(--ws) 10%,var(--surface));border:1px solid color-mix(in oklab,var(--ws) 28%,var(--line))}
+.banner.wshint b{display:block;color:var(--ink);font-size:14.5px;margin-bottom:2px}
+.banner.wshint span{display:block;line-height:1.6}
+.banner.wshint .btn{flex:none}
 .namecard{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px}
 .namecard .chips3{display:flex}
 .namecard .chips3 i{width:22px;height:22px;border-radius:8px;background:var(--a);border:2px solid var(--surface);margin-inline-start:-6px}
@@ -1022,7 +1026,7 @@ let savedView = "me"; try { savedView = localStorage.getItem("daftar:view") || "
 Object.assign(S, { view: savedView, isOwner: null, myId: null, profiles: {}, online: new Set(),
   ws: { tasks: {}, members: {}, comments: {}, meta: { name: "ورك سبيس", teams: [] }, ready: false, mready: false }, wsDay: "",
   wsSel: null, wsMEdit: null, wsConfirmM: null, wsExpanded: null, wsConfirm: null, wsStatus: "open", wsMember: null, wsTeam: "",
-  photo: null, wsPhoto: null, pendingWrites: 0, q: "", restore: null, focus: (() => { try { return localStorage.getItem("daftar:focus") === "1"; } catch (e) { return false; } })(), standalone: !(window.claude && typeof window.claude.use === "function"), dbKnown: false, whoKnown: false, ownStore: true, sharedOk: false, canShared: null, chat: (() => { try { const c = JSON.parse(localStorage.getItem("daftar:chat") || "[]"); return Array.isArray(c) ? c.filter(m => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string").slice(-16) : []; } catch (e) { return []; } })(), agentBusy: false, agentErr: "", agentDraft: "", bTab: (() => { try { return localStorage.getItem("daftar:btab") || "day"; } catch (e) { return "day"; } })(), bDay: "", wallBusy: false, hist: null, logDay: "", coach: null, coachText: "", coachBusy: false, coachErr: "", plan: null, planBusy: false, planErr: "", weekText: "", weekBusy: false, weekErr: "", wsRep: "", wsRepBusy: false, wsRepErr: "",
+  photo: null, wsPhoto: null, pendingWrites: 0, q: "", restore: null, focus: (() => { try { return localStorage.getItem("daftar:focus") === "1"; } catch (e) { return false; } })(), standalone: !(window.claude && typeof window.claude.use === "function"), dbKnown: false, whoKnown: false, wsHintOff: (() => { try { return localStorage.getItem("daftar:wshint") === "1"; } catch (e) { return false; } })(), ownStore: true, sharedOk: false, canShared: null, chat: (() => { try { const c = JSON.parse(localStorage.getItem("daftar:chat") || "[]"); return Array.isArray(c) ? c.filter(m => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string").slice(-16) : []; } catch (e) { return []; } })(), agentBusy: false, agentErr: "", agentDraft: "", bTab: (() => { try { return localStorage.getItem("daftar:btab") || "day"; } catch (e) { return "day"; } })(), bDay: "", wallBusy: false, hist: null, logDay: "", coach: null, coachText: "", coachBusy: false, coachErr: "", plan: null, planBusy: false, planErr: "", weekText: "", weekBusy: false, weekErr: "", wsRep: "", wsRepBusy: false, wsRepErr: "",
   listening: "", heard: "", speaking: false, voiceErr: "", reviewManual: false, wsReviewManual: false, wsFor: [], wsReview: null, wsReviewNote: "", wsParse: { state: "idle" }, wsPanel: false, joining: false });
 
 /* ---------- persistence ---------- */
@@ -1909,7 +1913,11 @@ function renderSwitch() {
   $("#me-view").hidden = V() !== "me";
   $("#ws-view").hidden = V() !== "ws";
 }
-function renderBanner() { $("#banner").innerHTML = S.banner ? `<div class="banner">${esc(S.banner)}</div>` : ""; }
+function renderBanner() {
+  const noWs = !S.standalone && S.whoKnown && S.isOwner === false && !S.sharedOk && !S.wsHintOff;
+  $("#banner").innerHTML = (S.banner ? `<div class="banner">${esc(S.banner)}</div>` : "") +
+    (noWs ? `<div class="banner wshint"><div><b>ورك سبيس غير متاح لك</b><span>عشان تشارك مهام الفريق هنا، اطلب من صاحب الرابط يدعوك بإيميلك بمستوى Editor، ويوقف خيار «أي شخص معه الرابط» من قائمة Share.</span></div><button class="btn sm" data-act="ws-hint-off">فهمت</button></div>` : "");
+}
 function renderWsHead() {
   const st = wsStats(), ms = members(), meta = S.ws.meta, show = ms.slice(0, 5), more = ms.length - show.length;
   const teams = meta.teams || [];
@@ -3182,6 +3190,7 @@ function onAct(b) {
       if (t.rv) { apply(t.obj); renderReview(); } else edit(t.id, apply);
       break;
     }
+    case "ws-hint-off": S.wsHintOff = true; try { localStorage.setItem("daftar:wshint", "1"); } catch (er) {} renderBanner(); break;
     case "name-later": S.settings = Object.assign(clone(S.settings), { named: true }); saveSettings(); render(); break;
     case "del": S.confirmDel = id; render(); break;
     case "del-no": S.confirmDel = null; render(); break;
