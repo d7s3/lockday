@@ -805,6 +805,27 @@ html{overflow-anchor:none}
 .review.manual .review-h h2{font-size:18px}
 .empty .row-opts{justify-content:center;margin-top:4px}
 
+
+/* voice: mic buttons, listening state, speaking indicator */
+.mic{width:44px;height:44px;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--ink);flex:none}
+.mic svg{width:22px;height:22px}
+.mic.on{background:var(--bad);border-color:var(--bad);color:#fff;animation:micpulse 1.4s ease-in-out infinite}
+@keyframes micpulse{0%,100%{box-shadow:0 0 0 0 color-mix(in oklab,var(--bad) 55%,transparent)}50%{box-shadow:0 0 0 9px color-mix(in oklab,var(--bad) 0%,transparent)}}
+.mic.lg{width:52px;height:52px;border-radius:17px}
+.mic.lg svg{width:25px;height:25px}
+.hearing{display:flex;align-items:center;gap:10px;background:color-mix(in oklab,var(--bad) 8%,var(--surface));border:1px solid color-mix(in oklab,var(--bad) 30%,var(--line));border-radius:16px;padding:10px 13px;font-size:15px;min-height:46px}
+.hearing .bars{display:flex;gap:3px;align-items:center;height:20px;flex:none}
+.hearing .bars i{width:3px;border-radius:3px;background:var(--bad);height:6px;animation:wv .9s ease-in-out infinite}
+.hearing .bars i:nth-child(2){animation-delay:.15s} .hearing .bars i:nth-child(3){animation-delay:.3s} .hearing .bars i:nth-child(4){animation-delay:.45s}
+.hearing span{flex:1;min-width:0;color:var(--ink)}
+.hearing span.dim{color:var(--muted)}
+.speaking{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--spark);font-weight:600}
+.speaking .bars{display:flex;gap:2px;height:13px;align-items:center}
+.speaking .bars i{width:2.5px;border-radius:2px;background:var(--spark);height:5px;animation:wv .8s ease-in-out infinite}
+.speaking .bars i:nth-child(2){animation-delay:.2s} .speaking .bars i:nth-child(3){animation-delay:.4s}
+.vrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.vhint{font-size:13px;color:var(--muted);margin:0}
+
 ::view-transition-group(*){animation-duration:.38s;animation-timing-function:var(--ease)}
 @media (prefers-reduced-motion:reduce){*,*::before{animation:none!important;transition:none!important}}
 </style>
@@ -824,12 +845,13 @@ html{overflow-anchor:none}
       <div class="box-foot">
         <span class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
         <span class="foot-acts"><label class="cam" id="cam" hidden aria-label="صورة قائمة أو سبورة"><input type="file" id="cam-in" accept="image/*" hidden><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.5"/></svg></label>
-        <button class="plus" data-act="add" aria-label="أضف يدوياً"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+        <span id="mic-slot"></span><button class="plus" data-act="add" aria-label="أضف يدوياً"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
         <button class="send" id="send" aria-label="رتّب بالذكاء" disabled>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg>
         </button></span>
       </div>
     </div>
+    <div id="hearing"></div>
     <div id="photo-chip"></div>
     <div class="pstatus" id="pstatus" aria-live="polite"></div>
     <div id="review"></div>
@@ -890,7 +912,7 @@ const DEFAULT_SETTINGS = { areas: {
   work: { name: "عملي", branches: [], hue: null },
   biz: { name: "مشروعي", branches: [], hue: null },
   personal: { name: "شخصي", branches: [], hue: null } }, order: ["work", "biz", "personal"],
-  prefs: { skin: "desert", font: "normal", motion: "on", name: "", workDays: [0, 1, 2, 3, 4], meetDur: 60, aiKinds: [] } };
+  prefs: { skin: "desert", font: "normal", motion: "on", name: "", workDays: [0, 1, 2, 3, 4], meetDur: 60, aiKinds: [], speak: true, handsFree: false, voice: "" } };
 const DEFAULT_HUE = { work: 258, biz: 60, personal: 165 };
 const HUES = [258, 60, 165, 305, 27, 200, 340, 100];
 const BASE_AI_KINDS = ["تغريدة", "منشور", "بريد", "خطاب", "خطة", "تقرير", "أجندة اجتماع"];
@@ -993,6 +1015,7 @@ function mergeSettings(o) {
   s.prefs.name = String(pr.name || "").slice(0, 30);
   if (Array.isArray(pr.workDays)) { const w = [...new Set(pr.workDays.map(Number).filter(d => d >= 0 && d <= 6))].sort(); if (w.length && w.length < 7) s.prefs.workDays = w; }
   if ([15, 30, 45, 60, 90, 120].includes(+pr.meetDur)) s.prefs.meetDur = +pr.meetDur;
+  s.prefs.speak = pr.speak !== false; s.prefs.handsFree = !!pr.handsFree; s.prefs.voice = String(pr.voice || "").slice(0, 80);
   if (Array.isArray(pr.aiKinds)) s.prefs.aiKinds = [...new Set(pr.aiKinds.map(x => String(x).trim()).filter(x => x && !BASE_AI_KINDS.includes(x)))].slice(0, 10);
   AREAS.splice(0, AREAS.length, ...order);
   AI_KINDS.splice(0, AI_KINDS.length, ...BASE_AI_KINDS, ...s.prefs.aiKinds);
@@ -1016,7 +1039,7 @@ Object.assign(S, { view: savedView, isOwner: null, myId: null, profiles: {}, onl
   ws: { tasks: {}, members: {}, comments: {}, meta: { name: "ورك سبيس", teams: [] }, ready: false, mready: false }, wsDay: "",
   wsSel: null, wsMEdit: null, wsConfirmM: null, wsExpanded: null, wsConfirm: null, wsStatus: "open", wsMember: null, wsTeam: "",
   photo: null, wsPhoto: null, pendingWrites: 0, q: "", restore: null, focus: (() => { try { return localStorage.getItem("daftar:focus") === "1"; } catch (e) { return false; } })(), standalone: !(window.claude && typeof window.claude.use === "function"), chat: (() => { try { const c = JSON.parse(localStorage.getItem("daftar:chat") || "[]"); return Array.isArray(c) ? c.filter(m => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string").slice(-16) : []; } catch (e) { return []; } })(), agentBusy: false, agentErr: "", agentDraft: "", bTab: (() => { try { return localStorage.getItem("daftar:btab") || "day"; } catch (e) { return "day"; } })(), bDay: "", wallBusy: false, hist: null, logDay: "", coach: null, coachText: "", coachBusy: false, coachErr: "", plan: null, planBusy: false, planErr: "", weekText: "", weekBusy: false, weekErr: "", wsRep: "", wsRepBusy: false, wsRepErr: "",
-  reviewManual: false, wsReviewManual: false, wsFor: [], wsReview: null, wsReviewNote: "", wsParse: { state: "idle" }, wsPanel: false, joining: false });
+  listening: "", heard: "", speaking: false, voiceErr: "", reviewManual: false, wsReviewManual: false, wsFor: [], wsReview: null, wsReviewNote: "", wsParse: { state: "idle" }, wsPanel: false, joining: false });
 
 /* ---------- persistence ---------- */
 const queues = {};
@@ -1414,8 +1437,16 @@ function renderSettings() {
   const el = $("#settings");
   if (S.showSettings) {
     const tab = S.stab || "areas", pr = prefs();
-    const tabs = [["areas", "الجهات"], ["look", "المظهر"], ["me", "عنّي"], ["backup", "نسخة احتياطية"]].concat(S.standalone ? [["ai", "الذكاء"]] : []);
+    const tabs = [["areas", "الجهات"], ["look", "المظهر"], ["me", "عنّي"], ["backup", "نسخة احتياطية"]].concat(canListen() || canSpeak() ? [["voice", "الصوت"]] : []).concat(S.standalone ? [["ai", "الذكاء"]] : []);
     const cfg = S.standalone ? stdCfg() : null;
+    const vlist = canSpeak() ? arabicVoices() : [];
+    const voiceTab = `<section>
+      <span class="lbl strong">الرد الصوتي</span>
+      <span class="seg"><button type="button" data-act="speak-pref" data-v="on" aria-pressed="${pr.speak !== false}">يرد بصوته</button><button type="button" data-act="speak-pref" data-v="off" aria-pressed="${pr.speak === false}">نص فقط</button></span>
+      ${canListen() ? `<span class="lbl strong">محادثة مستمرة</span><p class="vhint">بعد ما يرد، يفتح المايك تلقائياً عشان تكمّل الكلام بدون ما تضغط.</p><span class="seg"><button type="button" data-act="hands-free-set" data-v="on" aria-pressed="${!!pr.handsFree}">مفعّلة</button><button type="button" data-act="hands-free-set" data-v="off" aria-pressed="${!pr.handsFree}">موقوفة</button></span>` : `<p class="vhint">التعرّف على الصوت غير متاح في هذا المتصفح. استخدم مايك لوحة المفاتيح للإملاء.</p>`}
+      ${vlist.length ? `<label><span class="lbl strong">الصوت</span><select class="field" id="pref-voice">${vlist.map(v => `<option value="${esc(v.name)}"${(pr.voice || (arVoice && arVoice.name)) === v.name ? " selected" : ""}>${esc(v.name)} · ${esc(v.lang)}</option>`).join("")}</select></label>
+      <button class="btn sm" data-act="voice-test">جرّب الصوت</button>` : canSpeak() ? `<p class="vhint">ما لقيت صوتاً عربياً في هذا الجهاز. على الآيفون: الإعدادات ← تسهيلات الاستخدام ← المحتوى المنطوق ← الأصوات ← العربية.</p>` : ""}
+    </section>`;
     const aiTab = cfg ? `<section>
       <p class="hint">نسخة الويب تشتغل بمفتاح Anthropic الخاص بك. المفتاح يبقى على جهازك فقط ويُرسل مباشرة لـ Anthropic، ويُحاسَب على حسابك هناك.</p>
       <label><span class="lbl strong">مفتاح API</span><input class="field" type="password" id="api-key" value="${esc(cfg.key)}" placeholder="sk-ant-…" autocomplete="off"></label>
@@ -1452,7 +1483,7 @@ function renderSettings() {
     el.innerHTML = `<div class="sheet card">
       <h2>الإعدادات</h2>
       <nav class="stabs">${tabs.map(([k, l]) => `<button type="button" data-act="stab" data-v="${k}" aria-pressed="${tab === k}">${l}</button>`).join("")}</nav>
-      ${tab === "areas" ? areasTab : tab === "look" ? lookTab : tab === "me" ? meTab : tab === "ai" ? aiTab : ""}
+      ${tab === "areas" ? areasTab : tab === "look" ? lookTab : tab === "me" ? meTab : tab === "voice" ? voiceTab : tab === "ai" ? aiTab : ""}
       ${tab === "backup" ? `<div class="backup"><b>نسخة احتياطية</b><span>مهامك محفوظة في حسابك وما تضيع لو مسحت المتصفح. ولو تبي نسخة عندك، نزّلها ملف وترجّعها وقت ما تبي.</span>
         <div class="row-opts">${downloads ? `<button class="btn sm" data-act="backup">نزّل نسخة</button>` : ""}<label class="btn sm">استرجع من ملف<input type="file" id="restore-in" accept=".json,application/json" hidden></label></div>
         ${S.restore && S.restore.error ? `<span class="err">${esc(S.restore.error)}</span>` : ""}
@@ -1476,6 +1507,7 @@ function renderParse() {
   else if (p.state === "error") el.innerHTML = `<span class="err">${esc(p.msg)}</span>`;
   else el.innerHTML = "";
   $("#send").disabled = busy || (!$("#dictate").value.trim() && !S.photo);
+  renderHearing();
 }
 function blankEntry(pre) {
   pre = pre || {};
@@ -1735,6 +1767,7 @@ function collectSettings() {
   const s = clone(S.settings); s.order = AREAS.slice(); s.prefs = Object.assign(clone(DEFAULT_SETTINGS.prefs), s.prefs || {});
   AREAS.forEach(k => { const n = $("#set-name-" + k), b = $("#set-br-" + k); if (n && n.value.trim()) s.areas[k].name = n.value.trim().slice(0, 40); if (b) s.areas[k].branches = b.value.split(/[،,]/).map(x => x.trim()).filter(Boolean); });
   const nm = $("#pref-name"); if (nm) s.prefs.name = nm.value.trim().slice(0, 30);
+  const vo = $("#pref-voice"); if (vo) s.prefs.voice = vo.value;
   const md = $("#pref-meet"); if (md) s.prefs.meetDur = +md.value;
   const ai = $("#pref-ai"); if (ai) s.prefs.aiKinds = ai.value.split(/[،,]/).map(x => x.trim()).filter(Boolean);
   return s;
@@ -2133,11 +2166,16 @@ function photoChip(file, act) {
   let url = ""; try { url = URL.createObjectURL(file); } catch (e) {}
   return `<span class="photo-chip">${url ? `<img src="${url}" alt="">` : ""}<span>صورة مرفقة</span><button class="x" data-act="${act}" aria-label="شيل الصورة">×</button></span>`;
 }
+function renderHearing() {
+  const el = $("#hearing"); if (!el) return;
+  el.innerHTML = S.listening === "dictate" ? `<div class="hearing" style="margin-top:10px"><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="${S.heard ? "" : "dim"}">${esc(S.heard || "أسمعك… اضغط الزر لما تخلص")}</span>${micBtn("dictate")}</div>` : "";
+  const slot = $("#mic-slot"); if (slot) slot.innerHTML = S.listening === "dictate" ? "" : micBtn("dictate");
+}
 function renderPhotoChips() {
   $("#photo-chip").innerHTML = photoChip(S.photo, "photo-clear");
   $("#ws-photo-chip").innerHTML = photoChip(S.wsPhoto, "ws-photo-clear");
   $("#cam").hidden = !canImages; $("#ws-cam").hidden = !canImages;
-  renderParse(); renderWsParse();
+  renderParse(); renderWsParse(); renderHearing();
 }
 const aiErrText = e => ({ rate_limited: "وصلت حد الاستخدام مؤقتاً، جرّب بعد شوي.", not_granted: S.standalone ? "مفتاح API غير صحيح أو منتهي. راجع الإعدادات ← الذكاء." : "ما سمحت للأداة تستخدم Claude.", invalid_request: "الطلب مرفوض من الخدمة. جرّب موديل ثاني من الإعدادات.", image_rejected: "ما قدرت أقرأ الصورة، جرّب صورة أوضح.", images_unavailable: "قراءة الصور غير متاحة هنا." }[e && e.code] || "ما اكتملت، جرّب مرة ثانية.");
 
@@ -2682,6 +2720,8 @@ async function agentSend(textIn) {
   try {
     const { text: out } = await sample([{ role: "user", content: agentRules() }, ...S.chat], heavy({ signal: ctl.signal, tools: agentTools(), onText: ({ text }) => { S.agentDraft = text; const el = document.getElementById("agent-live"); if (el) el.textContent = text; } }));
     S.chat = [...S.chat, { role: "assistant", content: out }].slice(-16);
+    S.agentBusy = false; S.agentDraft = ""; agentCtl = null; renderAgent();
+    speak(out, () => { if (prefs().handsFree && canListen() && !S.listening) setTimeout(() => startListen("agent"), 250); });
   } catch (e) {
     if (e && e.code === "cancelled") { if (e.text) S.chat = [...S.chat, { role: "assistant", content: e.text }]; }
     else S.agentErr = e && e.code === "tools_unavailable" ? "الأدوات غير متاحة في هذا العرض." : aiErrText(e);
@@ -2695,12 +2735,15 @@ function renderAgent() {
   const el = $("#agent"); if (!el) return;
   const chat = S.chat || [];
   el.innerHTML = `<div class="card agent">
-    <div class="assist-h">${artSpark()}<div><h2>تكلّم مع Lockday</h2><p>اطلب وهو ينفّذ: يضيف، يعدّل، يأجّل، يخلّص، ويشغّل العدّاد</p></div></div>
+    <div class="assist-h">${artSpark()}<div><h2>تكلّم مع Lockday</h2><p>${canListen() ? "اضغط المايك وتكلّم، أو اكتب" : "اطلب وهو ينفّذ"}: يضيف، يعدّل، يأجّل، يخلّص، ويشغّل العدّاد</p>${S.speaking ? `<span class="speaking"><span class="bars"><i></i><i></i><i></i></span>يتكلّم…</span>` : ""}</div></div>
     ${!sample ? `<p class="hint">يحتاج Claude، وهو غير متاح في هذا العرض.</p>` : ""}
     <div class="chat" id="chat-log">${chat.map(m => `<div class="msg-b ${m.role}">${esc(m.content)}</div>`).join("")}${S.agentBusy ? `<div class="msg-b assistant live" id="agent-live">${esc(S.agentDraft) || "…"}</div>` : ""}</div>
     ${S.agentErr ? `<p class="hint err">${esc(S.agentErr)}</p>` : ""}
     ${!chat.length && !S.agentBusy ? `<div class="hints">${AGENT_HINTS.map(h => `<button class="chip" data-act="agent-hint" data-v="${esc(h)}">${esc(h)}</button>`).join("")}</div>` : ""}
-    <div class="addrow"><input class="field" id="agent-in" placeholder="قل له وش تبي" autocomplete="off"${!sample ? " disabled" : ""}>${S.agentBusy ? `<button class="btn" data-act="agent-stop">أوقف</button>` : `<button class="icon-send" data-act="agent-send" aria-label="أرسل"${!sample ? " disabled" : ""}>${GP_SVG("send")}</button>`}</div>
+    ${S.listening === "agent" ? `<div class="hearing"><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="${S.heard ? "" : "dim"}">${esc(S.heard || "أسمعك…")}</span>${micBtn("agent")}</div>` : ""}
+    ${S.voiceErr && S.listening !== "agent" ? `<p class="hint err">${esc(S.voiceErr)}</p>` : ""}
+    <div class="addrow">${S.listening !== "agent" && sample ? micBtn("agent") : ""}<input class="field" id="agent-in" placeholder="${canListen() ? "تكلّم أو اكتب" : "قل له وش تبي"}" autocomplete="off"${!sample ? " disabled" : ""}>${S.agentBusy ? `<button class="btn" data-act="agent-stop">أوقف</button>` : `<button class="icon-send" data-act="agent-send" aria-label="أرسل"${!sample ? " disabled" : ""}>${GP_SVG("send")}</button>`}</div>
+    ${canSpeak() || canListen() ? `<div class="vrow"><span class="seg" role="group" aria-label="الرد الصوتي"><button type="button" data-act="speak-pref" data-v="on" aria-pressed="${prefs().speak !== false}">يرد بصوته</button><button type="button" data-act="speak-pref" data-v="off" aria-pressed="${prefs().speak === false}">نص فقط</button></span>${canListen() ? `<button class="chip" data-act="hands-free" aria-pressed="${!!prefs().handsFree}">محادثة مستمرة</button>` : ""}${S.speaking ? `<button class="btn sm" data-act="shush">اسكت</button>` : ""}</div>` : ""}
     ${chat.length ? `<div class="row-opts"><button class="btn sm" data-act="agent-clear">امسح المحادثة</button></div>` : ""}
   </div>`;
   const log = document.getElementById("chat-log"); if (log) log.scrollTop = log.scrollHeight;
@@ -2782,6 +2825,77 @@ function renderStdCard() {
   el.innerHTML = `<div class="card namecard"><div><b>فعّل الذكاء</b><span>نسخة الويب تشتغل بمفتاح Anthropic الخاص بك. المفتاح يبقى على جهازك ويُرسل مباشرة لـ Anthropic.</span></div><div class="row-opts"><button class="btn sm primary" data-act="std-setup">أضف المفتاح</button></div></div>`;
 }
 
+/* ---------- voice: talk to Lockday, and hear it answer ---------- */
+const SRClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+const synth = window.speechSynthesis;
+const canListen = () => !!SRClass;
+const canSpeak = () => !!synth;
+let rec = null, recTarget = "", recFinal = "", recStop = false;
+let arVoice = null, voicesReady = false;
+function pickVoice() {
+  if (!synth) return null;
+  const vs = synth.getVoices() || [];
+  if (!vs.length) return null;
+  voicesReady = true;
+  const pref = prefs().voice || "";
+  arVoice = (pref && vs.find(v => v.name === pref)) || vs.find(v => /^ar-SA/i.test(v.lang)) || vs.find(v => /^ar/i.test(v.lang)) || null;
+  return arVoice;
+}
+if (synth) { pickVoice(); try { synth.addEventListener("voiceschanged", () => { pickVoice(); if (S.showSettings && S.stab === "voice") renderSettings(); }); } catch (e) {} }
+const arabicVoices = () => { try { return (synth.getVoices() || []).filter(v => /^ar/i.test(v.lang)); } catch (e) { return []; } };
+const sayable = t => String(t || "").replace(/```[\s\S]*?```/g, " ").replace(/[*_#`>|]/g, " ").replace(/\[([^\]]*)\]/g, "$1").replace(/[•◆]/g, "، ").replace(/\s{2,}/g, " ").trim().slice(0, 1200);
+function stopSpeak() { try { synth && synth.cancel(); } catch (e) {} S.speaking = false; }
+function speak(text, done) {
+  if (!canSpeak() || !prefs().speak) { done && done(); return; }
+  const t = sayable(text); if (!t) { done && done(); return; }
+  stopSpeak();
+  if (!voicesReady) pickVoice();
+  const u = new SpeechSynthesisUtterance(t);
+  u.lang = (arVoice && arVoice.lang) || "ar-SA"; if (arVoice) u.voice = arVoice;
+  u.rate = 1.02; u.pitch = 1;
+  u.onend = u.onerror = () => { S.speaking = false; renderAgent(); done && done(); };
+  S.speaking = true; renderAgent();
+  try { synth.speak(u); } catch (e) { S.speaking = false; done && done(); }
+}
+function stopListen() { recStop = true; try { rec && rec.stop(); } catch (e) {} rec = null; S.listening = ""; S.heard = ""; renderAgent(); renderParse(); }
+function startListen(target) {
+  if (!canListen()) return;
+  if (S.listening) { stopListen(); return; }
+  stopSpeak();
+  let r; try { r = new SRClass(); } catch (e) { return; }
+  rec = r; recTarget = target; recFinal = ""; recStop = false;
+  r.lang = "ar-SA"; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
+  S.listening = target; S.heard = ""; S.voiceErr = ""; renderAgent(); renderParse();
+  r.onresult = e => {
+    let interim = "";
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const txt = e.results[i][0].transcript;
+      if (e.results[i].isFinal) recFinal += txt; else interim += txt;
+    }
+    S.heard = (recFinal + interim).trim();
+    if (recTarget === "dictate") { const d = $("#dictate"); if (d) { d.value = S.heard; renderParse(); } }
+    else renderAgent();
+  };
+  r.onerror = e => {
+    const c = e && e.error;
+    S.voiceErr = c === "not-allowed" || c === "service-not-allowed" ? "ما سمحت للمتصفح بالمايك. فعّله من إعدادات الموقع." : c === "no-speech" ? "ما سمعت شي، جرّب مرة ثانية." : c === "network" ? "التعرّف على الصوت يحتاج إنترنت." : "ما قدرت أسمعك، جرّب مرة ثانية.";
+    recStop = true;
+  };
+  r.onend = () => {
+    const text = (recFinal || S.heard || "").trim();
+    const target = recTarget, failed = !!S.voiceErr;
+    rec = null; S.listening = ""; S.heard = "";
+    if (target === "dictate") { renderParse(); renderAgent(); if (failed) showToast(S.voiceErr, null); return; }
+    renderAgent();
+    if (failed) { renderAgent(); return; }
+    if (text) agentSend(text);
+  };
+  try { r.start(); } catch (e) { S.listening = ""; renderAgent(); }
+}
+const MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/></svg>';
+const STOPSQ = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></svg>';
+const micBtn = (target, cls) => !canListen() ? "" : `<button class="mic${cls ? " " + cls : ""}${S.listening === target ? " on" : ""}" data-act="mic" data-v="${target}" aria-label="${S.listening === target ? "أوقف" : "تكلّم"}" aria-pressed="${S.listening === target}">${S.listening === target ? STOPSQ : MIC}</button>`;
+
 const REGIONS = [["#std", renderStdCard], ["#agent", renderAgent], ["#boards", renderBoards], ["#log", renderLog], ["#forgot", renderForgot], ["#assist", renderAssist], ["#ws-report", renderWsReport], ["#ws-inbox", renderWsInbox], ["#ws-kpi", renderWsKpi], ["#ws-dash", renderWsDash], ["#switch", renderSwitch], ["#banner", renderBanner], ["#ws-head", renderWsHead], ["#ws-members", renderWsMembers], ["#ws-for", renderWsFor], ["#ws-tasks", renderWsTasks], ["#ws-activity", renderWsActivity], ["#settings", renderSettings], ["#hero-in", renderHero], ["#pulse", renderPulse], ["#running", renderRunning], ["#meetings", renderMeetings], ["#tabs", renderTabs], ["#big", renderLists], ["#ai", renderAI], ["#done", renderDone]];
 const ME_REGIONS = new Set(["#std", "#agent", "#boards", "#log", "#forgot", "#assist", "#pulse", "#running", "#meetings", "#tabs", "#big", "#ai", "#done"]);
 function render() {
@@ -2798,6 +2912,7 @@ function render() {
   S.dirty = skipped;
   syncBadge();
 }
+document.addEventListener("visibilitychange", () => { if (document.hidden) { stopSpeak(); if (S.listening) stopListen(); } });
 document.addEventListener("focusout", () => setTimeout(() => {
   const ae = document.activeElement;
   if (S.dirty && !(ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))) render();
@@ -3140,7 +3255,13 @@ function onAct(b) {
     case "restore-no": S.restore = null; renderSettings(); break;
     case "agent-send": { const inp = $("#agent-in"); const val = inp ? inp.value : ""; if (inp) inp.value = ""; agentSend(val); break; }
     case "agent-hint": agentSend(v); break;
-    case "agent-stop": if (agentCtl) agentCtl.abort(); break;
+    case "agent-stop": if (agentCtl) agentCtl.abort(); stopSpeak(); break;
+    case "mic": startListen(v); break;
+    case "shush": stopSpeak(); renderAgent(); break;
+    case "speak-pref": { const st = collectSettings(); st.prefs.speak = v === "on"; S.settings = mergeSettings(st); saveSettings(); if (v !== "on") stopSpeak(); renderAgent(); break; }
+    case "hands-free-set": { const st = collectSettings(); st.prefs.handsFree = v === "on"; S.settings = mergeSettings(st); saveSettings(); renderSettings(); break; }
+    case "voice-test": { const st = collectSettings(); S.settings = mergeSettings(st); saveSettings(); pickVoice(); const was = prefs().speak; if (!was) { const s2 = collectSettings(); s2.prefs.speak = true; S.settings = mergeSettings(s2); } speak("تمام، أسمعك. قل لي وش تبي أسوي اليوم."); break; }
+    case "hands-free": { const st = collectSettings(); st.prefs.handsFree = !prefs().handsFree; S.settings = mergeSettings(st); saveSettings(); renderAgent(); break; }
     case "agent-clear": S.chat = []; try { localStorage.removeItem("daftar:chat"); } catch (er) {} renderAgent(); break;
     case "btab": S.bTab = v; try { localStorage.setItem("daftar:btab", v); } catch (er) {} renderBoards(); break;
     case "b-day": S.bDay = v; S.bTab = "day"; try { localStorage.setItem("daftar:btab", "day"); } catch (er) {} renderBoards(); break;
