@@ -814,6 +814,39 @@ html{overflow-anchor:none}
 .vrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .vhint{font-size:13px;color:var(--muted);margin:0}
 
+
+/* projects */
+.plist{display:flex;flex-direction:column;gap:10px}
+.pcard{background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);overflow:hidden}
+.pcard.open{border-color:color-mix(in oklab,var(--a) 45%,var(--line))}
+.pcard.pdone{opacity:.62}
+.phead{display:flex;align-items:center;gap:12px;width:100%;border:0;background:transparent;padding:13px;text-align:start;color:var(--ink)}
+.pring{flex:none}
+.ring-svg.sm text{font-size:26px}
+.pinfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.pinfo b{font-size:16.5px;font-weight:700;overflow-wrap:anywhere}
+.pbody{padding:0 13px 13px;display:flex;flex-direction:column;gap:10px}
+.stages{display:flex;flex-direction:column;gap:2px}
+.stage{display:flex;align-items:center;gap:10px;padding:7px 0;position:relative}
+.stage::before{content:"";position:absolute;inset-inline-start:13px;top:0;bottom:0;width:2px;background:var(--line)}
+.stage:first-child::before{top:50%}
+.stage:last-child::before{bottom:50%}
+.sdot{position:relative;z-index:1;width:28px;height:28px;border-radius:50%;border:2px solid var(--line);background:var(--surface);color:var(--muted);font-size:12.5px;font-weight:800;display:grid;place-items:center;flex:none;padding:0}
+.sdot svg{width:14px;height:14px}
+.stage.sdone .sdot{background:var(--a);border-color:var(--a);color:#fff}
+.stage.scur .sdot{border-color:var(--a);color:var(--a);box-shadow:0 0 0 4px color-mix(in oklab,var(--a) 18%,transparent)}
+.sbody{flex:1;min-width:0;display:flex;flex-direction:column}
+.sbody b{font-size:15px;font-weight:600}
+.stage.sdone .sbody b{text-decoration:line-through;color:var(--muted)}
+.sbody small{font-size:12px;color:var(--muted)}
+.snow{font-style:normal;font-size:11.5px;font-weight:800;background:var(--a);color:#fff;border-radius:99px;padding:1px 9px;flex:none}
+.pnext{display:flex;flex-direction:column;gap:4px;background:var(--bg2);border-radius:14px;padding:10px}
+.arow2{display:flex;align-items:center;gap:9px}
+.arow2 .tile{width:34px;height:34px;border-radius:11px}
+.arow2 .tile .ico{width:16px;height:16px}
+.arow2 .atitle{color:var(--ink)}
+.arow2 .chk{width:34px;height:34px;border-radius:11px}
+
 ::view-transition-group(*){animation-duration:.38s;animation-timing-function:var(--ease)}
 @media (prefers-reduced-motion:reduce){*,*::before{animation:none!important;transition:none!important}}
 </style>
@@ -849,6 +882,7 @@ html{overflow-anchor:none}
   <section id="boards" aria-label="لوحاتك"></section>
   <section id="assist" aria-label="مساعدك"></section>
   <section id="meetings"></section>
+  <section id="projects" aria-label="مشاريعك"></section>
   <section id="forgot" aria-label="لا تنساها"></section>
   <div class="searchbar" id="searchbar" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input class="field" id="q" type="search" placeholder="ابحث في مهامك" aria-label="ابحث في مهامك" autocomplete="off"></div>
   <nav class="tabs" id="tabs" aria-label="تصفية"></nav>
@@ -900,7 +934,7 @@ const DEFAULT_SETTINGS = { areas: {
   work: { name: "عملي", branches: [], hue: null },
   biz: { name: "مشروعي", branches: [], hue: null },
   personal: { name: "شخصي", branches: [], hue: null } }, order: ["work", "biz", "personal"],
-  prefs: { skin: "desert", font: "normal", motion: "on", name: "", workDays: [0, 1, 2, 3, 4], meetDur: 60, aiKinds: [], speak: true, handsFree: false, voice: "" } };
+  tpls: [], prefs: { skin: "desert", font: "normal", motion: "on", name: "", workDays: [0, 1, 2, 3, 4], meetDur: 60, aiKinds: [], speak: true, handsFree: false, voice: "" } };
 const DEFAULT_HUE = { work: 258, biz: 60, personal: 165 };
 const HUES = [258, 60, 165, 305, 27, 200, 340, 100];
 const BASE_AI_KINDS = ["تغريدة", "منشور", "بريد", "خطاب", "خطة", "تقرير", "أجندة اجتماع"];
@@ -1003,6 +1037,8 @@ function mergeSettings(o) {
   s.prefs.name = String(pr.name || "").slice(0, 30);
   if (Array.isArray(pr.workDays)) { const w = [...new Set(pr.workDays.map(Number).filter(d => d >= 0 && d <= 6))].sort(); if (w.length && w.length < 7) s.prefs.workDays = w; }
   if ([15, 30, 45, 60, 90, 120].includes(+pr.meetDur)) s.prefs.meetDur = +pr.meetDur;
+  if (Array.isArray(o.tpls) && o.tpls.length) s.tpls = o.tpls.filter(t => t && typeof t.name === "string" && Array.isArray(t.stages)).slice(0, 6)
+    .map(t => ({ id: String(t.id || "t" + Math.random().toString(36).slice(2, 8)), name: String(t.name).slice(0, 40), stages: t.stages.filter(x => x && x.name).slice(0, 20).map(x => ({ name: String(x.name).slice(0, 50), tasks: Array.isArray(x.tasks) ? x.tasks.map(String).slice(0, 12) : [] })) }));
   s.prefs.speak = pr.speak !== false; s.prefs.handsFree = !!pr.handsFree; s.prefs.voice = String(pr.voice || "").slice(0, 80);
   if (Array.isArray(pr.aiKinds)) s.prefs.aiKinds = [...new Set(pr.aiKinds.map(x => String(x).trim()).filter(x => x && !BASE_AI_KINDS.includes(x)))].slice(0, 10);
   AREAS.splice(0, AREAS.length, ...order);
@@ -1026,6 +1062,7 @@ let savedView = "me"; try { savedView = localStorage.getItem("daftar:view") || "
 Object.assign(S, { view: savedView, isOwner: null, myId: null, profiles: {}, online: new Set(),
   ws: { tasks: {}, members: {}, comments: {}, meta: { name: "ورك سبيس", teams: [] }, ready: false, mready: false }, wsDay: "",
   wsSel: null, wsMEdit: null, wsConfirmM: null, wsExpanded: null, wsConfirm: null, wsStatus: "open", wsMember: null, wsTeam: "",
+  projects: {}, projOpen: null, projNew: false, projNewName: "", projTpl: "", projArea: "", projConfirm: null, projDone: false,
   photo: null, wsPhoto: null, pendingWrites: 0, q: "", restore: null, focus: (() => { try { return localStorage.getItem("daftar:focus") === "1"; } catch (e) { return false; } })(), standalone: !(window.claude && typeof window.claude.use === "function"), dbKnown: false, whoKnown: false, wsHintOff: (() => { try { return localStorage.getItem("daftar:wshint") === "1"; } catch (e) { return false; } })(), ownStore: true, sharedOk: false, canShared: null, chat: (() => { try { const c = JSON.parse(localStorage.getItem("daftar:chat") || "[]"); return Array.isArray(c) ? c.filter(m => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string").slice(-16) : []; } catch (e) { return []; } })(), agentBusy: false, agentErr: "", agentDraft: "", bTab: (() => { try { return localStorage.getItem("daftar:btab") || "day"; } catch (e) { return "day"; } })(), bDay: "", wallBusy: false, hist: null, logDay: "", coach: null, coachText: "", coachBusy: false, coachErr: "", plan: null, planBusy: false, planErr: "", weekText: "", weekBusy: false, weekErr: "", wsRep: "", wsRepBusy: false, wsRepErr: "",
   listening: "", heard: "", speaking: false, voiceErr: "", reviewManual: false, wsReviewManual: false, wsFor: [], wsReview: null, wsReviewNote: "", wsParse: { state: "idle" }, wsPanel: false, joining: false });
 
@@ -1041,7 +1078,7 @@ function enqueue(key, fn) {
 }
 function saveLocal() {
   if (S.mode !== "local" && S.ownStore) return;
-  try { localStorage.setItem("daftar:data", JSON.stringify({ items: S.items, timer: S.timer, settings: S.settings, plan: S.plan, hist: S.hist, coach: S.coach, ws: { tasks: S.ws.tasks, members: S.ws.members, comments: S.ws.comments, meta: S.ws.meta } })); } catch (e) {}
+  try { localStorage.setItem("daftar:data", JSON.stringify({ items: S.items, timer: S.timer, settings: S.settings, plan: S.plan, hist: S.hist, coach: S.coach, projects: S.projects, ws: { tasks: S.ws.tasks, members: S.ws.members, comments: S.ws.comments, meta: S.ws.meta } })); } catch (e) {}
 }
 function saveItem(id) {
   if (!db || !S.ownStore) return saveLocal();
@@ -1425,7 +1462,7 @@ function renderSettings() {
   const el = $("#settings");
   if (S.showSettings) {
     const tab = S.stab || "areas", pr = prefs();
-    const tabs = [["areas", "الجهات"], ["look", "المظهر"], ["me", "عنّي"], ["backup", "نسخة احتياطية"]].concat(canListen() || canSpeak() ? [["voice", "الصوت"]] : []).concat(S.standalone ? [["ai", "الذكاء"]] : []);
+    const tabs = [["areas", "الجهات"], ["look", "المظهر"], ["me", "عنّي"], ["backup", "نسخة احتياطية"]].concat([["tpl", "مسارات المشاريع"]]).concat(canListen() || canSpeak() ? [["voice", "الصوت"]] : []).concat(S.standalone ? [["ai", "الذكاء"]] : []);
     const cfg = S.standalone ? stdCfg() : null;
     const vlist = canSpeak() ? arabicVoices() : [];
     const voiceTab = `<section>
@@ -1471,7 +1508,7 @@ function renderSettings() {
     el.innerHTML = `<div class="sheet card">
       <h2>الإعدادات</h2>
       <nav class="stabs">${tabs.map(([k, l]) => `<button type="button" data-act="stab" data-v="${k}" aria-pressed="${tab === k}">${l}</button>`).join("")}</nav>
-      ${tab === "areas" ? areasTab : tab === "look" ? lookTab : tab === "me" ? meTab : tab === "voice" ? voiceTab : tab === "ai" ? aiTab : ""}
+      ${tab === "areas" ? areasTab : tab === "look" ? lookTab : tab === "me" ? meTab : tab === "tpl" ? renderTplTab() : tab === "voice" ? voiceTab : tab === "ai" ? aiTab : ""}
       ${tab === "backup" ? `<div class="backup"><b>نسخة احتياطية</b><span>مهامك محفوظة في حسابك وما تضيع لو مسحت المتصفح. ولو تبي نسخة عندك، نزّلها ملف وترجّعها وقت ما تبي.</span>
         <div class="row-opts">${downloads ? `<button class="btn sm" data-act="backup">نزّل نسخة</button>` : ""}<label class="btn sm">استرجع من ملف<input type="file" id="restore-in" accept=".json,application/json" hidden></label></div>
         ${S.restore && S.restore.error ? `<span class="err">${esc(S.restore.error)}</span>` : ""}
@@ -1499,10 +1536,11 @@ function renderParse() {
 }
 function blankEntry(pre) {
   pre = pre || {};
+  const proj = pre.proj || "", stage = pre.stage == null ? null : +pre.stage;
   const kind = pre.kind === "meeting" ? "meeting" : "task";
   return { kind, title: String(pre.title || "").trim(), area: AREAS.includes(pre.area) ? pre.area : defArea(), branch: "",
     size: pre.size === "big" ? "big" : "small", days: kind === "task" ? (pre.days || []) : [], repeat: [],
-    date: kind === "meeting" ? (pre.date || defaultMeetingDate("")) : "", time: "", duration: meetDur(), place: "", ai: "" };
+    date: kind === "meeting" ? (pre.date || defaultMeetingDate("")) : "", time: "", duration: meetDur(), place: "", ai: "", proj, stage };
 }
 function manualAdd(pre) {
   if (parseCtl) { try { parseCtl.abort(); } catch (e) {} parseCtl = null; }
@@ -1569,6 +1607,7 @@ function taskRow(it, st) {
         <button class="main" data-act="expand" data-id="${it.id}" aria-expanded="${open}">
           <div class="t">${esc(it.title)}</div>
           <div class="meta"><span class="atag"><i class="dot"></i>${esc(areaName(it.area))}${it.branch ? " · " + esc(it.branch) : ""}</span>
+            ${it.proj && projById(it.proj) ? `<span class="pill">${esc(projById(it.proj).name)}</span>` : ""}
             <span class="pill ${st.k}">${esc(st.label)}</span>${isRec(it) ? `<span>↻ ${esc(repeatLabel(it.repeat))}</span>` : ""}${spent ? `<span class="num">${fmtDur(spent)}</span>` : ""}</div>
         </button>
         ${st.k === "late" ? `<button class="btn sm later" data-act="postpone" data-id="${it.id}">أجّلها لبكرة</button>` : ""}
@@ -1756,6 +1795,7 @@ function collectSettings() {
   AREAS.forEach(k => { const n = $("#set-name-" + k), b = $("#set-br-" + k); if (n && n.value.trim()) s.areas[k].name = n.value.trim().slice(0, 40); if (b) s.areas[k].branches = b.value.split(/[،,]/).map(x => x.trim()).filter(Boolean); });
   const nm = $("#pref-name"); if (nm) s.prefs.name = nm.value.trim().slice(0, 30);
   const vo = $("#pref-voice"); if (vo) s.prefs.voice = vo.value;
+  if ($("#tpl-0-name") || $("#tpl-0-body")) s.tpls = collectTpls();
   const md = $("#pref-meet"); if (md) s.prefs.meetDur = +md.value;
   const ai = $("#pref-ai"); if (ai) s.prefs.aiKinds = ai.value.split(/[،,]/).map(x => x.trim()).filter(Boolean);
   return s;
@@ -2649,10 +2689,11 @@ function createItem(r) {
   S.items[id] = { id, kind: r.kind, title: (r.title || "").trim() || "بدون عنوان", area: AREAS.includes(r.area) ? r.area : defArea(), branch: r.branch || "", size: r.kind === "task" ? (r.size === "big" ? "big" : "small") : "small",
     days: r.kind === "task" && !(r.repeat || []).length ? (r.days || []) : [], repeat: r.kind === "task" ? (r.repeat || []) : [], doneDates: [], date: r.kind === "meeting" ? (r.date || "") : "", time: r.kind === "meeting" ? (r.time || "") : "",
     duration: r.kind === "meeting" ? (+r.duration || meetDur()) : 0, place: r.place || "", ai: r.ai || "", draft: "", log: {},
+    proj: r.proj || "", stage: r.stage == null ? null : +r.stage,
     done: false, doneAt: "", cal: { added: false, sig: "" }, createdAt: Date.now() };
   saveItem(id); return id;
 }
-const compact = it => { const t = todayIso(), st = it.kind === "meeting" ? null : taskStatus(it, t); return { id: it.id, kind: it.kind, title: it.title, area: it.area, size: it.size, days: it.days || [], repeat: it.repeat || [], date: it.date || "", time: it.time || "", duration: it.duration || 0, place: it.place || "", status: it.done ? "done" : st ? st.k : "meeting", late_days: st && st.k === "late" ? st.n : 0 }; };
+const compact = it => { const t = todayIso(), st = it.kind === "meeting" ? null : taskStatus(it, t); return { id: it.id, kind: it.kind, title: it.title, area: it.area, size: it.size, project: it.proj ? (projById(it.proj) || {}).name || "" : "", stage: it.stage == null ? "" : ((projById(it.proj) || {}).stages || [])[it.stage] && ((projById(it.proj) || {}).stages || [])[it.stage].name || "", days: it.days || [], repeat: it.repeat || [], date: it.date || "", time: it.time || "", duration: it.duration || 0, place: it.place || "", status: it.done ? "done" : st ? st.k : "meeting", late_days: st && st.k === "late" ? st.n : 0 }; };
 function agentTools() {
   const t = todayIso(), need = id => { const it = S.items[String(id)]; if (!it) throw new Error("ما فيه عنصر بهذا المعرّف: " + id); return it; };
   return [
@@ -2689,10 +2730,23 @@ function agentTools() {
       execute: ({ id, days }) => { const it = need(id); if (it.kind === "meeting") throw new Error("هذا اجتماع، عدّل تاريخه بـ update_item"); const n = Math.max(0, Math.min(60, +days || 1)); edit(String(id), x => { x.days = [iso(addDays(new Date(), n))]; x.repeat = []; if (n > 0) x.postponed = (x.postponed || 0) + 1; }); return compact(S.items[String(id)]); } },
     { name: "timer", description: "action=start مع id يبدأ عدّاد الوقت على مهمة (ويوقف أي عدّاد شغّال)، action=stop يوقفه. يرجّع المهمة الشغّالة الآن.", inputSchema: { type: "object", properties: { action: { type: "string", enum: ["start", "stop"] }, id: { type: "string" } }, required: ["action"] },
       execute: ({ action, id }) => { if (action === "start") { need(id); startTimer(String(id)); } else stopTimer(); render(); return { running: S.timer.itemId ? compact(S.items[S.timer.itemId]) : null }; } },
+    { name: "list_projects", description: "يرجّع مشاريع المستخدم: الاسم والجهة والمرحلة الحالية وكم مرحلة خلصت ونسبة الإنجاز وعدد المهام المتأخرة والموعد النهائي، مع id لكل مشروع.",
+      execute: () => ({ count: projects().length, projects: projects().map(p => { const st = projStats(p); const stages = p.stages || []; return { id: p.id, name: p.name, area: areaName(p.area), done: !!p.done, due: p.due || "", current_stage: stages[Math.min(st.cur, Math.max(0, stages.length - 1))] ? stages[Math.min(st.cur, Math.max(0, stages.length - 1))].name : "", stages_done: st.stageDone, stages_total: stages.length, percent: st.pct, open_tasks: st.open, late: st.late, note: p.note || "" }; }) }) },
+    { name: "project_tasks", description: "يرجّع مهام مشروع معيّن مرتبة حسب مراحله. مرّر id المشروع من list_projects.",
+      inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
+      execute: ({ id }) => { const p = projById(String(id)); if (!p) throw new Error("ما فيه مشروع بهذا المعرّف"); const stages = p.stages || [];
+        return { project: p.name, stages: stages.map((st, i) => ({ stage: st.name, done: !!st.done, tasks: projTasks(p.id).filter(x => x.stage === i).map(compact) })), unassigned: projTasks(p.id).filter(x => x.stage == null).map(compact) }; } },
+    { name: "add_project", description: "ينشئ مشروعاً جديداً من أحد المسارات المعرّفة، فتنزل مراحله ومهامه تلقائياً. استخدمه فقط لما يطلب المستخدم مشروعاً جديداً. tpl اختياري، وإذا تُرك يأخذ المسار الأول.",
+      inputSchema: { type: "object", properties: { name: { type: "string" }, area: { type: "string" }, tpl: { type: "string" } }, required: ["name"] },
+      execute: ({ name, area, tpl }) => { const t = tpls().find(x => x.id === tpl || x.name === tpl) || tpls()[0]; const id = newProject(String(name), t.id, area); showToast("Lockday أنشأ مشروعاً", null); return { id, name: S.projects[id].name, stages: (S.projects[id].stages || []).map(x => x.name) }; } },
+    { name: "set_stage_done", description: "يعلّم مرحلة في مشروع منجزة أو يرجّعها. index هو ترتيب المرحلة من صفر.",
+      inputSchema: { type: "object", properties: { id: { type: "string" }, index: { type: "integer" }, done: { type: "boolean" } }, required: ["id", "index"] },
+      execute: ({ id, index, done }) => { const p = projById(String(id)); if (!p) throw new Error("ما فيه مشروع بهذا المعرّف"); const i = +index; if (!(p.stages || [])[i]) throw new Error("ما فيه مرحلة بهذا الترتيب");
+        editProj(p.id, x => { x.stages[i].done = done == null ? !x.stages[i].done : !!done; }); return { stage: p.stages[i].name, done: S.projects[p.id].stages[i].done }; } },
     { name: "overview", description: "ملخص اليوم: عدد المتأخر ومهام اليوم واجتماعات اليوم، وقت العمل المسجّل اليوم، السلسلة، نسبة إنجاز اليوم، ومهام الفريق المكلّف بها المستخدم.",
       execute: () => { const dp = dayProgress(), st = streakInfo(), tasks = openTasks(); const me = myMember();
         const per = zeroAreas(); Object.values(S.items).forEach(it => { if (it && per[it.area] != null) per[it.area] += spentToday(it); });
-        return { date: t, weekday: WD[new Date().getDay()], late: tasks.filter(it => taskStatus(it, t).k === "late").length, today: tasks.filter(it => taskStatus(it, t).k === "today").length, meetings_today: openItems().filter(it => it.kind === "meeting" && it.date === t).map(compact), done_today: dp.done, day_pct: dp.pct, streak: st.cur, best_streak: st.best, minutes_today: Object.fromEntries(AREAS.map(k => [areaName(k), Math.round(per[k] / 60)])), team_tasks: me ? wsTasks().filter(x => x.status !== "done" && (x.assignees || []).includes(me.id)).slice(0, 10).map(x => ({ title: x.title, due: x.due, status: x.status, priority: x.priority })) : [] }; } }
+        return { date: t, weekday: WD[new Date().getDay()], late: tasks.filter(it => taskStatus(it, t).k === "late").length, today: tasks.filter(it => taskStatus(it, t).k === "today").length, meetings_today: openItems().filter(it => it.kind === "meeting" && it.date === t).map(compact), done_today: dp.done, day_pct: dp.pct, streak: st.cur, best_streak: st.best, minutes_today: Object.fromEntries(AREAS.map(k => [areaName(k), Math.round(per[k] / 60)])), projects_open: projects().filter(p => !p.done).length, team_tasks: me ? wsTasks().filter(x => x.status !== "done" && (x.assignees || []).includes(me.id)).slice(0, 10).map(x => ({ title: x.title, due: x.due, status: x.status, priority: x.priority })) : [] }; } }
   ];
 }
 function agentRules() {
@@ -2701,6 +2755,8 @@ function agentRules() {
 اليوم ${WD[now.getDay()]} ${todayIso()} الساعة ${p2(now.getHours())}:${p2(now.getMinutes())}. أيام الدوام: ${WORK_DAYS().map(d => WD[d]).join("، ")}.
 الأيام القادمة: ${[...Array(8)].map((_, i) => { const d = addDays(now, i); return `${WD[d.getDay()]}=${iso(d)}`; }).join("، ")}.
 الجهات (المعرّف: الاسم): ${AREAS.map(k => `${k}: ${areaName(k)}`).join("، ")}.
+المسارات المعرّفة للمشاريع: ${tpls().map(t => `${t.name} (${t.stages.map(x => x.name).join(" ← ")})`).join(" | ")}.
+المستخدم يدير مشاريع بمراحل. إذا سألك عن مشروع استخدم list_projects ثم project_tasks، وقل له وين وقف ووش الخطوة الجاية بالضبط. المهمة المرتبطة بمشروع تجيك فيها project و stage.
 قواعد: قبل أي تعديل أو إنجاز أو تأجيل استدعِ list_items لتعرف المعرّفات الصحيحة. إذا كان الطلب غامضاً بين عدة مهام اسأل المستخدم بدل ما تخمّن. ما عندك أداة حذف: إذا طلب حذف قل له يحذفها من بطاقة المهمة. لا تخترع مهاماً أو مواعيد. بعد ما تنفّذ، اذكر بالضبط وش سويت.`;
 }
 let agentCtl = null;
@@ -2722,7 +2778,7 @@ async function agentSend(textIn) {
   try { localStorage.setItem("daftar:chat", JSON.stringify(S.chat)); } catch (er) {}
   render(); renderAgent();
 }
-const AGENT_HINTS = ["وش عندي اليوم؟", "أجّل كل مهام المشروع لبكرة", "خلّص مهمة الفاتورة", "ضيف اجتماع مع المورد بكرة الساعة ١٠", "ابدأ العدّاد على التقرير", "وش المتأخر عندي؟"];
+const AGENT_HINTS = ["وين وقفت في مشاريعي؟", "وش الخطوة الجاية؟", "وش عندي اليوم؟", "أجّل كل مهام المشروع لبكرة", "خلّص مهمة الفاتورة", "ضيف اجتماع مع المورد بكرة الساعة ١٠", "ابدأ العدّاد على التقرير", "وش المتأخر عندي؟"];
 function renderAgent() {
   const el = $("#agent"); if (!el) return;
   const chat = S.chat || [];
@@ -2888,8 +2944,142 @@ const MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-w
 const STOPSQ = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></svg>';
 const micBtn = (target, cls) => !canListen() ? "" : `<button class="mic${cls ? " " + cls : ""}${S.listening === target ? " on" : ""}" data-act="mic" data-v="${target}" aria-label="${S.listening === target ? "أوقف" : "تكلّم"}" aria-pressed="${S.listening === target}">${S.listening === target ? STOPSQ : MIC}</button>`;
 
-const REGIONS = [["#std", renderStdCard], ["#agent", renderAgent], ["#boards", renderBoards], ["#log", renderLog], ["#forgot", renderForgot], ["#assist", renderAssist], ["#ws-report", renderWsReport], ["#ws-inbox", renderWsInbox], ["#ws-kpi", renderWsKpi], ["#ws-dash", renderWsDash], ["#switch", renderSwitch], ["#banner", renderBanner], ["#ws-head", renderWsHead], ["#ws-members", renderWsMembers], ["#ws-for", renderWsFor], ["#ws-tasks", renderWsTasks], ["#ws-activity", renderWsActivity], ["#settings", renderSettings], ["#hero-in", renderHero], ["#pulse", renderPulse], ["#running", renderRunning], ["#meetings", renderMeetings], ["#tabs", renderTabs], ["#big", renderLists], ["#ai", renderAI], ["#done", renderDone]];
-const ME_REGIONS = new Set(["#std", "#agent", "#boards", "#log", "#forgot", "#assist", "#pulse", "#running", "#meetings", "#tabs", "#big", "#ai", "#done"]);
+/* ---------- projects: a reusable stage pipeline, and where every project stands ---------- */
+const DEFAULT_TPL = [{
+  id: "t_basic", name: "مسار عام",
+  stages: [
+    { name: "تحديد", tasks: ["اكتب الهدف والمخرج المطلوب", "حدد المدة والمسؤول"] },
+    { name: "بحث وتجهيز", tasks: ["اجمع المراجع والبيانات", "جهّز المسودة الأولى"] },
+    { name: "تنفيذ", tasks: ["نفّذ الجزء الأساسي"] },
+    { name: "مراجعة", tasks: ["راجع المخرج", "عالج الملاحظات"] },
+    { name: "تسليم", tasks: ["سلّم المخرج", "وثّق الدروس المستفادة"] }
+  ]
+}];
+const projects = () => Object.values(S.projects).filter(Boolean).sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || (b.createdAt || 0) - (a.createdAt || 0));
+const projById = id => S.projects[id] || null;
+const projTasks = pid => Object.values(S.items).filter(it => it && it.proj === pid);
+const tpls = () => (S.settings.tpls && S.settings.tpls.length ? S.settings.tpls : DEFAULT_TPL);
+function saveProj(id) {
+  if (!db || !S.ownStore) return saveLocal();
+  enqueue("p:" + id, () => S.projects[id] ? db.collection("projects").doc(id).set(S.projects[id]) : db.collection("projects").doc(id).delete());
+}
+function editProj(id, fn) {
+  const p = S.projects[id]; if (!p) return;
+  const n = clone(p); fn(n); S.projects[id] = n; saveProj(id); render();
+}
+function projStats(p) {
+  const all = projTasks(p.id), done = all.filter(it => it.done || (isRec(it) && (it.doneDates || []).length)).length;
+  const stages = p.stages || [];
+  const perStage = stages.map((st, i) => {
+    const mine = all.filter(it => it.stage === i);
+    return { n: mine.length, done: mine.filter(x => x.done).length, blocked: mine.some(x => !x.done && taskStatus(x, todayIso()).k === "late") };
+  });
+  let cur = perStage.findIndex((s, i) => !stages[i].done && (s.n === 0 || s.done < s.n));
+  if (cur < 0) cur = stages.findIndex(s => !s.done);
+  if (cur < 0) cur = Math.max(0, stages.length - 1);
+  const stageDone = stages.filter(s => s.done).length;
+  return { total: all.length, done, open: all.length - done, pct: all.length ? Math.round(done / all.length * 100) : (stages.length ? Math.round(stageDone / stages.length * 100) : 0), perStage, cur, stageDone, late: all.filter(it => !it.done && taskStatus(it, todayIso()).k === "late").length };
+}
+function newProject(name, tplId, area) {
+  const tpl = tpls().find(t => t.id === tplId) || tpls()[0];
+  const id = "p" + newId().slice(1, 10);
+  S.projects[id] = { id, name: String(name || "مشروع جديد").slice(0, 80), area: AREAS.includes(area) ? area : defArea(),
+    stages: (tpl ? tpl.stages : []).map(s => ({ name: s.name, done: false })), tpl: tpl ? tpl.id : "", note: "", due: "", done: false, createdAt: Date.now() };
+  saveProj(id);
+  if (tpl) tpl.stages.forEach((s, i) => (s.tasks || []).forEach(t => createItem({ kind: "task", title: t, area: S.projects[id].area, size: "small", days: [], repeat: [], proj: id, stage: i })));
+  render();
+  return id;
+}
+function delProject(id, withTasks) {
+  projTasks(id).forEach(it => { if (withTasks) { delete S.items[it.id]; saveItem(it.id); } else edit(it.id, x => { x.proj = ""; x.stage = null; }); });
+  delete S.projects[id]; saveProj(id); S.projOpen = null; S.projConfirm = null; render();
+}
+const artMap = () => `<svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="13" style="fill:color-mix(in oklab,var(--work) 16%,var(--surface))"/><path d="M14 9 8 12v19l6-3 12 3 6-3V9l-6 3z" fill="none" style="stroke:var(--work)" stroke-width="2.2" stroke-linejoin="round"/><path d="M14 9v19M26 12v19" style="stroke:var(--work)" stroke-width="2.2"/><circle cx="20" cy="19" r="3" style="fill:var(--biz)"/></svg>`;
+function stageRow(p, st, i, s) {
+  const cur = i === s.cur && !st.done, ps = s.perStage[i] || { n: 0, done: 0 };
+  return `<div class="stage${st.done ? " sdone" : ""}${cur ? " scur" : ""}">
+    <button class="sdot" data-act="pj-stage" data-id="${p.id}" data-v="${i}" aria-label="${st.done ? "رجّع المرحلة" : "خلّص المرحلة"}" aria-pressed="${!!st.done}">${st.done ? ICON.check : i + 1}</button>
+    <div class="sbody"><b>${esc(st.name)}</b>${ps.n ? `<small class="num">${ps.done}/${ps.n}${ps.blocked ? " · متأخرة" : ""}</small>` : `<small class="dim">بلا مهام</small>`}</div>
+    ${cur ? `<em class="snow">الحين</em>` : ""}
+    <button class="btn sm" data-act="add" data-proj="${p.id}" data-stage="${i}" data-v="${p.area}">+ مهمة</button>
+  </div>`;
+}
+function projCard(p) {
+  const s = projStats(p), open = S.projOpen === p.id, st = p.stages || [];
+  const next = projTasks(p.id).filter(it => !it.done && it.stage === s.cur).slice(0, 3);
+  return `<div class="pcard${open ? " open" : ""}${p.done ? " pdone" : ""}" data-area="${p.area}" style="${vtn("p" + p.id)}">
+    <button class="phead" data-act="pj-open" data-id="${p.id}" aria-expanded="${open}">
+      <span class="pring">${ringSvg(s.pct, 46, "ring-svg sm")}</span>
+      <span class="pinfo"><b>${esc(p.name)}</b>
+        <span class="meta"><span class="atag"><i class="dot"></i>${esc(areaName(p.area))}</span>${st.length ? `<span>${st[Math.min(s.cur, st.length - 1)] ? esc(st[Math.min(s.cur, st.length - 1)].name) : ""} · ${s.stageDone}/${st.length} مراحل</span>` : ""}${s.late ? `<span class="pill late">${s.late} متأخرة</span>` : ""}${p.due ? `<span class="pill ${diffDays(p.due, todayIso()) > 0 && !p.done ? "late" : ""}">${esc(dayLabel(p.due))}</span>` : ""}</span>
+      </span>
+    </button>
+    ${open ? `<div class="pbody">
+      <div class="stages">${st.map((x, i) => stageRow(p, x, i, s)).join("")}</div>
+      ${next.length ? `<div class="pnext"><span class="lbl">الخطوة الجاية</span>${next.map(it => `<div class="arow2">${tile(it)}<span class="atitle">${esc(it.title)}</span><button class="chk" data-act="done" data-id="${it.id}" aria-label="تم">${ICON.check}</button></div>`).join("")}</div>` : ""}
+      <div class="grid2">
+        <label><span class="lbl">الاسم</span><input class="field" id="pj-${p.id}-name" data-pf="name" data-pid="${p.id}" value="${esc(p.name)}"></label>
+        <label><span class="lbl">الموعد النهائي</span><input class="field" type="date" id="pj-${p.id}-due" data-pf="due" data-pid="${p.id}" value="${esc(p.due)}"></label>
+      </div>
+      <div class="row-opts">${AREAS.map(k => `<button type="button" class="chip" data-area="${k}" data-act="pj-area" data-id="${p.id}" data-v="${k}" aria-pressed="${p.area === k}"><span class="dot"></span>${esc(areaName(k))}</button>`).join("")}</div>
+      <textarea class="field" id="pj-${p.id}-note" data-pf="note" data-pid="${p.id}" rows="2" placeholder="هدف المشروع والمخرج المطلوب">${esc(p.note || "")}</textarea>
+      <div class="actions">
+        <button class="btn sm" data-act="pj-done" data-id="${p.id}">${p.done ? "رجّعه للعمل" : "أقفل المشروع"}</button>
+        ${S.projConfirm === p.id ? "" : `<button class="btn sm" data-act="pj-del" data-id="${p.id}">حذف</button>`}
+      </div>
+      ${S.projConfirm === p.id ? `<div class="confirm" role="alertdialog"><p>تحذف «${esc(p.name)}»؟</p><small>${projTasks(p.id).length ? `فيه ${countWord(projTasks(p.id).length, "مهمة", "مهمتين", "مهام")}.` : "ما فيه مهام."}</small><div><button class="btn danger" data-act="pj-del-yes" data-id="${p.id}" data-v="keep">احذفه وخلّ المهام</button>${projTasks(p.id).length ? `<button class="btn danger" data-act="pj-del-yes" data-id="${p.id}" data-v="all">احذفه مع مهامه</button>` : ""}<button class="btn" data-act="pj-del-no">تراجع</button></div></div>` : ""}
+    </div>` : ""}
+  </div>`;
+}
+function renderProjects() {
+  const el = $("#projects"); if (!el) return;
+  if (!S.ready) { el.innerHTML = ""; return; }
+  const list = projects().filter(p => !p.done || S.projDone);
+  const openCount = projects().filter(p => !p.done).length;
+  el.innerHTML = `<div class="sec-h"><h2>${artMap()}مشاريعك</h2><span class="right"><button class="addbtn" data-act="pj-new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> مشروع</button><span class="c num">${openCount}</span></span></div>
+    ${S.projNew ? `<div class="card review manual">
+      <div class="review-h">${artMap()}<div><h2>مشروع جديد</h2><p>اختر مساراً، وتنزل مراحله ومهامه جاهزة.</p></div></div>
+      <input class="field" id="pj-name" placeholder="اسم المشروع" value="${esc(S.projNewName || "")}">
+      <span class="lbl">المسار</span>
+      <div class="row-opts">${tpls().map(t => `<button class="chip" data-act="pj-tpl" data-v="${t.id}" aria-pressed="${(S.projTpl || tpls()[0].id) === t.id}">${esc(t.name)} · ${t.stages.length} مراحل</button>`).join("")}</div>
+      <span class="lbl">الجهة</span>
+      <div class="row-opts">${AREAS.map(k => `<button class="chip" data-area="${k}" data-act="pj-narea" data-v="${k}" aria-pressed="${(S.projArea || defArea()) === k}"><span class="dot"></span>${esc(areaName(k))}</button>`).join("")}</div>
+      <div class="row-opts"><button class="btn grad" data-act="pj-create">أنشئ</button><button class="btn" data-act="pj-new-cancel">إلغاء</button></div>
+    </div>` : ""}
+    ${list.length ? `<div class="plist">${list.map(projCard).join("")}</div>` : (S.projNew ? "" : `<div class="card empty-mini">ما عندك مشاريع. اضغط «مشروع» وابدأ واحداً بمساره الجاهز.</div>`)}
+    ${projects().some(p => p.done) ? `<div class="row-opts" style="margin-top:8px"><button class="btn sm" data-act="pj-showdone" aria-pressed="${!!S.projDone}">${S.projDone ? "أخفِ المقفلة" : `أظهر المقفلة (${projects().filter(p => p.done).length})`}</button></div>` : ""}`;
+}
+/* templates live in settings so the pipeline is yours to shape */
+function renderTplTab() {
+  const list = tpls();
+  return `<section>
+    <p class="vhint">المسار هو خطوات أي مشروع عندك. عرّفه مرة، وكل مشروع جديد ينزل بمراحله ومهامه.</p>
+    ${list.map((t, ti) => `<div class="area-set" data-area="${AREAS[ti % AREAS.length]}">
+      <div class="row-opts top"><label><span class="lbl strong">اسم المسار</span><input class="field" id="tpl-${ti}-name" value="${esc(t.name)}"></label>${list.length > 1 ? `<button class="x" data-act="tpl-del" data-v="${ti}" aria-label="احذف المسار">×</button>` : ""}</div>
+      <label><span class="lbl">المراحل (كل سطر مرحلة، والمهام بعد نقطتين وتفصلها فاصلة)</span>
+      <textarea class="field" id="tpl-${ti}-body" rows="${Math.min(10, t.stages.length + 2)}" placeholder="تحديد: اكتب الهدف، حدد المدة">${esc(t.stages.map(s => s.name + ((s.tasks || []).length ? ": " + s.tasks.join("، ") : "")).join("\n"))}</textarea></label>
+    </div>`).join("")}
+    ${list.length < 6 ? `<button class="btn" data-act="tpl-add">+ مسار جديد</button>` : ""}
+  </section>`;
+}
+function collectTpls() {
+  const out = [];
+  tpls().forEach((t, ti) => {
+    const nameEl = $("#tpl-" + ti + "-name"), bodyEl = $("#tpl-" + ti + "-body");
+    if (!nameEl && !bodyEl) { out.push(t); return; }
+    const stages = String(bodyEl ? bodyEl.value : "").split("\n").map(l => l.trim()).filter(Boolean).slice(0, 20).map(line => {
+      const i = line.indexOf(":");
+      const name = (i < 0 ? line : line.slice(0, i)).trim().slice(0, 50);
+      const tasks = i < 0 ? [] : line.slice(i + 1).split(/[،,]/).map(x => x.trim()).filter(Boolean).slice(0, 12);
+      return { name, tasks };
+    }).filter(s => s.name);
+    out.push({ id: t.id, name: (nameEl ? nameEl.value.trim() : t.name).slice(0, 40) || "مسار", stages: stages.length ? stages : t.stages });
+  });
+  return out;
+}
+
+const REGIONS = [["#projects", renderProjects], ["#std", renderStdCard], ["#agent", renderAgent], ["#boards", renderBoards], ["#log", renderLog], ["#forgot", renderForgot], ["#assist", renderAssist], ["#ws-report", renderWsReport], ["#ws-inbox", renderWsInbox], ["#ws-kpi", renderWsKpi], ["#ws-dash", renderWsDash], ["#switch", renderSwitch], ["#banner", renderBanner], ["#ws-head", renderWsHead], ["#ws-members", renderWsMembers], ["#ws-for", renderWsFor], ["#ws-tasks", renderWsTasks], ["#ws-activity", renderWsActivity], ["#settings", renderSettings], ["#hero-in", renderHero], ["#pulse", renderPulse], ["#running", renderRunning], ["#meetings", renderMeetings], ["#tabs", renderTabs], ["#big", renderLists], ["#ai", renderAI], ["#done", renderDone]];
+const ME_REGIONS = new Set(["#projects", "#std", "#agent", "#boards", "#log", "#forgot", "#assist", "#pulse", "#running", "#meetings", "#tabs", "#big", "#ai", "#done"]);
 function render() {
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && ae.id !== "dictate" && ae.id !== "ws-dictate";
   const v = V();
@@ -3116,7 +3306,7 @@ function setVal(scope, f, v) {
 }
 
 const VT_ACTS = new Set(["done", "undo", "expand", "tab", "del-yes", "postpone", "rv-add", "rv-remove", "play", "pause", "ai-open",
-  "view", "m-sel", "m-tasks", "ws-day", "sub-tg", "fg", "focus", "log-day", "skin", "btab", "b-day", "b-done", "wt-status", "wt-expand", "wt-del-yes", "ws-filter", "ws-team", "wr-add", "ws-member-clear", "m-del-yes"]);
+  "view", "m-sel", "m-tasks", "ws-day", "sub-tg", "fg", "focus", "log-day", "skin", "btab", "b-day", "b-done", "pj-open", "pj-stage", "pj-done", "pj-del-yes", "wt-status", "wt-expand", "wt-del-yes", "ws-filter", "ws-team", "wr-add", "ws-member-clear", "m-del-yes"]);
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-act]"); if (!b) return;
   const act = b.dataset.act;
@@ -3124,7 +3314,8 @@ document.addEventListener("click", e => {
   if (act === "done") { const r = b.getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2); try { navigator.vibrate && navigator.vibrate(12); } catch (er) {} }
   if (VT_ACTS.has(act)) vt(() => onAct(b)); else onAct(b);
 });
-const SETTINGS_ACTS = new Set(["settings", "set-save", "stab", "std-setup", "area-add", "area-hue", "area-del", "area-del-yes", "area-del-no", "skin", "font", "motion", "wday", "ws-save", "ws-panel"]);
+const SETTINGS_ACTS = new Set(["settings", "set-save", "stab", "std-setup", "area-add", "area-hue", "area-del", "area-del-yes", "area-del-no", "skin", "font", "motion", "wday", "ws-save", "ws-panel",
+  "pj-new", "pj-create", "pj-tpl", "pj-narea", "pj-new-cancel", "pj-open", "pj-stage", "pj-area", "pj-done", "pj-del", "pj-del-yes", "pj-del-no", "pj-showdone", "tpl-add", "tpl-del"]);
 function onAct(b) {
   const act = b.dataset.act, id = b.dataset.id, scope = b.dataset.scope, v = b.dataset.v;
   // iOS keeps focus in a text field when a button is tapped; the page skips redraws while typing, so release it first
@@ -3158,7 +3349,7 @@ function onAct(b) {
     case "rv-remove": S.review.splice(+v, 1); renderReview(); break;
     case "rv-cancel": S.review = null; S.reviewManual = false; S.reviewNote = ""; renderReview(); break;
     case "rv-more": { S.review = [...(S.review || []), blankEntry({ area: (S.review[S.review.length - 1] || {}).area })]; renderReview(); setTimeout(() => { const t = $("#rv-" + (S.review.length - 1) + "-title"); if (t) t.focus(); }, 60); break; }
-    case "add": manualAdd({ kind: b.dataset.kind, size: b.dataset.size, days: b.dataset.day ? [b.dataset.day] : [], date: b.dataset.day || "", area: b.dataset.v }); break;
+    case "add": manualAdd({ kind: b.dataset.kind, size: b.dataset.size, days: b.dataset.day ? [b.dataset.day] : [], date: b.dataset.day || "", area: b.dataset.v, proj: b.dataset.proj, stage: b.dataset.stage }); break;
     case "rv-add": addReview(); break;
     case "area": case "size": if (setVal(scope, act, v) === "rv") renderReview(); break;
     case "day": {
@@ -3240,6 +3431,27 @@ function onAct(b) {
     case "wt-pri": wsEdit(id, { priority: v }, "priority"); break;
     case "wt-del": S.wsConfirm = id; render(); break;
     case "wt-del-no": S.wsConfirm = null; render(); break;
+    case "pj-new": S.projNew = true; S.projNewName = ""; render(); setTimeout(() => { const n = $("#pj-name"); if (n) n.focus(); }, 50); break;
+    case "pj-new-cancel": S.projNew = false; render(); break;
+    case "pj-tpl": S.projTpl = v; S.projNewName = ($("#pj-name") || {}).value || ""; render(); break;
+    case "pj-narea": S.projArea = v; S.projNewName = ($("#pj-name") || {}).value || ""; render(); break;
+    case "pj-create": {
+      const nm = ($("#pj-name") || {}).value || "";
+      if (!nm.trim()) { const n = $("#pj-name"); if (n) n.focus(); break; }
+      const id = newProject(nm, S.projTpl || tpls()[0].id, S.projArea || defArea());
+      S.projNew = false; S.projNewName = ""; S.projOpen = id; render();
+      showToast("انشأ المشروع بمراحله", null); break;
+    }
+    case "pj-open": S.projOpen = S.projOpen === id ? null : id; S.projConfirm = null; render(); break;
+    case "pj-stage": editProj(id, x => { const st = (x.stages || [])[+v]; if (st) st.done = !st.done; }); break;
+    case "pj-area": editProj(id, x => { x.area = v; }); break;
+    case "pj-done": editProj(id, x => { x.done = !x.done; }); break;
+    case "pj-del": S.projConfirm = id; render(); break;
+    case "pj-del-no": S.projConfirm = null; render(); break;
+    case "pj-del-yes": delProject(id, v === "all"); showToast("انحذف المشروع", null); break;
+    case "pj-showdone": S.projDone = !S.projDone; renderProjects(); break;
+    case "tpl-add": { const st = collectSettings(); st.tpls = [...collectTpls(), { id: "t" + newId().slice(1, 8), name: "مسار جديد", stages: [{ name: "الخطوة الأولى", tasks: [] }] }]; S.settings = mergeSettings(st); saveSettings(); renderSettings(); break; }
+    case "tpl-del": { const st = collectSettings(); st.tpls = collectTpls().filter((_, i) => i !== +v); S.settings = mergeSettings(st); saveSettings(); renderSettings(); break; }
     case "fg": { const n = +v; edit(id, it => { it.days = [iso(addDays(new Date(), n))]; if (n > 0) it.postponed = (it.postponed || 0) + 1; }); showToast(n === 0 ? "صارت لليوم" : n === 1 ? "صارت لبكرة" : "تأجلت أسبوع", null); break; }
     case "focus": S.focus = !S.focus; try { localStorage.setItem("daftar:focus", S.focus ? "1" : "0"); } catch (er) {} render(); break;
     case "search": { const sb = $("#searchbar"); sb.hidden = !sb.hidden; if (sb.hidden) { S.q = ""; $("#q").value = ""; } render(); if (!sb.hidden) $("#q").focus(); break; }
@@ -3297,6 +3509,7 @@ document.addEventListener("input", e => {
 document.addEventListener("change", e => {
   const el = e.target;
   if (el.id === "restore-in") { readRestore(el.files && el.files[0]); el.value = ""; return; }
+  if (el.dataset.pf && el.dataset.pid) { const f = el.dataset.pf; let val = el.value; if (f === "name" && !val.trim()) val = "مشروع"; editProj(el.dataset.pid, x => { x[f] = f === "name" ? val.slice(0, 80) : val; }); return; }
   if (el.dataset.wf && el.dataset.wid) { const f = el.dataset.wf; let val = el.value; if (f === "title" && !val.trim()) val = "بدون عنوان"; wsEdit(el.dataset.wid, { [f]: val }, "edit"); return; }
   if (el.dataset.mf && el.dataset.mid) { memberEdit(el.dataset.mid, { [el.dataset.mf]: el.value.trim() }); return; }
   if (el.dataset.rf && el.dataset.ri != null && S.wsReview) { const r = S.wsReview[+el.dataset.ri]; if (r) r[el.dataset.rf] = el.value; return; }
@@ -3367,7 +3580,7 @@ use("room").then(r => {
 });
 use("db").then(d => { db = d; S.dbKnown = true; bootData(); });
 function loadLocal() {
-  try { const o = JSON.parse(localStorage.getItem("daftar:data") || "null"); if (o) { S.items = o.items || {}; S.timer = o.timer || S.timer; S.settings = mergeSettings(o.settings); if (o.plan) S.plan = o.plan; if (o.hist) S.hist = o.hist; if (o.coach) { S.coach = o.coach; S.coachText = o.coach.text || ""; } if (!S.sharedOk && o.ws) { S.ws.tasks = o.ws.tasks || {}; S.ws.members = o.ws.members || {}; S.ws.comments = o.ws.comments || {}; S.ws.meta = Object.assign(S.ws.meta, o.ws.meta || {}); } } } catch (e) {}
+  try { const o = JSON.parse(localStorage.getItem("daftar:data") || "null"); if (o) { S.items = o.items || {}; S.timer = o.timer || S.timer; S.settings = mergeSettings(o.settings); if (o.plan) S.plan = o.plan; if (o.hist) S.hist = o.hist; if (o.projects) S.projects = o.projects; if (o.coach) { S.coach = o.coach; S.coachText = o.coach.text || ""; } if (!S.sharedOk && o.ws) { S.ws.tasks = o.ws.tasks || {}; S.ws.members = o.ws.members || {}; S.ws.comments = o.ws.comments || {}; S.ws.meta = Object.assign(S.ws.meta, o.ws.meta || {}); } } } catch (e) {}
 }
 let booted = false;
 function bootData() {
@@ -3401,6 +3614,10 @@ function bootStores() {
   } else { S.ws.ready = S.ws.mready = true; }
   if (!S.ownStore) { render(); return; }
   S.mode = "db"; syncBadge();
+  db.collection("projects").onSnapshot(snap => {
+    const o = {}; snap.docs.forEach(d => { const x = d.data(); if (x) o[d.id] = Object.assign({}, x, { id: d.id }); });
+    S.projects = o; render();
+  }, lost);
   db.collection("items").onSnapshot(snap => {
     const o = {}; snap.docs.forEach(d => { const x = d.data(); if (x) o[d.id] = Object.assign({}, x, { id: d.id }); });
     S.items = o; S.ready = true; render();
