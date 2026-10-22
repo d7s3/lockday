@@ -599,6 +599,7 @@ details.done li .t{flex:1;min-width:0;text-decoration:line-through;text-decorati
 .sync.busy{color:var(--warn)}
 .sync.busy::before{animation:bob 1s ease-in-out infinite}
 .sync.local{color:var(--warn);background:color-mix(in oklab,var(--warn) 12%,transparent)}
+.sync.fail{color:#fff;background:var(--bad)}
 .pulse-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .forgot{padding:14px;display:flex;flex-direction:column;gap:10px;border:1.5px solid color-mix(in oklab,var(--biz) 40%,var(--line));background:linear-gradient(160deg,color-mix(in oklab,var(--biz) 9%,var(--surface)),var(--surface))}
 .fg-h{display:flex;align-items:center;gap:10px}
@@ -1062,7 +1063,7 @@ let savedView = "me"; try { savedView = localStorage.getItem("daftar:view") || "
 Object.assign(S, { view: savedView, isOwner: null, myId: null, profiles: {}, online: new Set(),
   ws: { tasks: {}, members: {}, comments: {}, meta: { name: "ورك سبيس", teams: [] }, ready: false, mready: false }, wsDay: "",
   wsSel: null, wsMEdit: null, wsConfirmM: null, wsExpanded: null, wsConfirm: null, wsStatus: "open", wsMember: null, wsTeam: "",
-  projects: {}, projOpen: null, projNew: false, projNewName: "", projTpl: "", projArea: "", projConfirm: null, projDone: false,
+  saveFail: false, projects: {}, projOpen: null, projNew: false, projNewName: "", projTpl: "", projArea: "", projConfirm: null, projDone: false,
   photo: null, wsPhoto: null, pendingWrites: 0, q: "", restore: null, focus: (() => { try { return localStorage.getItem("daftar:focus") === "1"; } catch (e) { return false; } })(), standalone: !(window.claude && typeof window.claude.use === "function"), dbKnown: false, whoKnown: false, wsHintOff: (() => { try { return localStorage.getItem("daftar:wshint") === "1"; } catch (e) { return false; } })(), ownStore: true, sharedOk: false, canShared: null, chat: (() => { try { const c = JSON.parse(localStorage.getItem("daftar:chat") || "[]"); return Array.isArray(c) ? c.filter(m => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string").slice(-16) : []; } catch (e) { return []; } })(), agentBusy: false, agentErr: "", agentDraft: "", bTab: (() => { try { return localStorage.getItem("daftar:btab") || "day"; } catch (e) { return "day"; } })(), bDay: "", wallBusy: false, hist: null, logDay: "", coach: null, coachText: "", coachBusy: false, coachErr: "", plan: null, planBusy: false, planErr: "", weekText: "", weekBusy: false, weekErr: "", wsRep: "", wsRepBusy: false, wsRepErr: "",
   listening: "", heard: "", speaking: false, voiceErr: "", reviewManual: false, wsReviewManual: false, wsFor: [], wsReview: null, wsReviewNote: "", wsParse: { state: "idle" }, wsPanel: false, joining: false });
 
@@ -1078,7 +1079,17 @@ function enqueue(key, fn) {
 }
 function saveLocal() {
   if (S.mode !== "local" && S.ownStore) return;
-  try { localStorage.setItem("daftar:data", JSON.stringify({ items: S.items, timer: S.timer, settings: S.settings, plan: S.plan, hist: S.hist, coach: S.coach, projects: S.projects, ws: { tasks: S.ws.tasks, members: S.ws.members, comments: S.ws.comments, meta: S.ws.meta } })); } catch (e) {}
+  try {
+    localStorage.setItem("daftar:data", JSON.stringify({ items: S.items, timer: S.timer, settings: S.settings, plan: S.plan, hist: S.hist, coach: S.coach, projects: S.projects, ws: { tasks: S.ws.tasks, members: S.ws.members, comments: S.ws.comments, meta: S.ws.meta } }));
+    if (S.saveFail) { S.saveFail = false; S.banner = ""; renderBanner(); syncBadge(); }
+  } catch (e) {
+    // storage is full or blocked: this is the only copy, so say so instead of losing it quietly
+    if (!S.saveFail) {
+      S.saveFail = true;
+      S.banner = "ما قدرت أحفظ على هذا الجهاز، وذاكرة المتصفح ممتلئة. نزّل نسخة احتياطية من الإعدادات الآن، وامسح المنجز القديم.";
+      renderBanner(); syncBadge();
+    }
+  }
 }
 function saveItem(id) {
   if (!db || !S.ownStore) return saveLocal();
@@ -1337,15 +1348,18 @@ function renderSky() {
 /* ---------- small view helpers ---------- */
 const countWord = (n, one, two, many) => n === 1 ? one : n === 2 ? two : n <= 10 ? `${n} ${many}` : `${n} ${one}`;
 const reduced = () => { if (document.documentElement.dataset.motion === "off") return true; try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } };
+let vtBusy = false;
 function vt(fn) {
   // animated transitions snapshot every named card; with long lists that costs seconds, so skip them
   const named = document.querySelectorAll('[style*="view-transition-name"]').length;
-  if (document.startViewTransition && !reduced() && document.visibilityState === "visible" && named <= 60) {
+  // a tap arriving mid-animation applies at once: queuing it behind the transition can drop it
+  if (document.startViewTransition && !reduced() && document.visibilityState === "visible" && named <= 60 && !vtBusy) {
     try {
-      const tr = document.startViewTransition(fn), q = () => {};
-      [tr.ready, tr.finished, tr.updateCallbackDone].forEach(p => p && p.catch(q));
+      vtBusy = true;
+      const tr = document.startViewTransition(fn), done = () => { vtBusy = false; };
+      [tr.ready, tr.finished, tr.updateCallbackDone].forEach(p => p && p.then(done, done));
       return;
-    } catch (e) {}
+    } catch (e) { vtBusy = false; }
   }
   fn();
 }
@@ -2305,7 +2319,8 @@ async function runWsReport() {
   } catch (e) { S.wsRepErr = aiErrText(e); }
   S.wsRepBusy = false; renderWsReport();
 }
-const csvCell = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+// Excel runs a cell starting with = + - @ as a formula, and these titles come from teammates
+const csvCell = v => { const t = String(v ?? ""); return `"${(/^[=+\-@\t\r]/.test(t) ? "'" + t : t).replace(/"/g, '""')}"`; };
 function wsCsv() {
   const nm = id => memberName(S.ws.members[id]);
   const rows = [["المهمة", "الحالة", "المكلّفون", "الموعد", "الأولوية", "الفريق", "الخطوات", "ملاحظة", "أُضيفت"]].concat(
@@ -2364,8 +2379,8 @@ function renderWsReport() {
 
 /* ---------- from people's replies: never lose data, less clutter, nothing forgotten ---------- */
 function syncBadge() {
-  const cls = S.mode === "db" ? (S.pendingWrites > 0 ? "busy" : "ok") : S.mode === "local" ? "local" : "";
-  const txt = S.mode === "db" ? (S.pendingWrites > 0 ? "يحفظ…" : "محفوظ في حسابك") : S.mode === "local" ? "على هذا الجهاز فقط" : "يتصل…";
+  const cls = S.saveFail ? "fail" : S.mode === "db" ? (S.pendingWrites > 0 ? "busy" : "ok") : S.mode === "local" ? "local" : "";
+  const txt = S.saveFail ? "ما انحفظ!" : S.mode === "db" ? (S.pendingWrites > 0 ? "يحفظ…" : "محفوظ في حسابك") : S.mode === "local" ? "على هذا الجهاز فقط" : "يتصل…";
   document.querySelectorAll(".sync").forEach(el => { el.className = "sync " + cls; el.textContent = txt; });
 }
 const norm = x => String(x || "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/[\u064B-\u0652\u0640]/g, "").toLowerCase();
@@ -2803,6 +2818,20 @@ const STD_MODELS = { "claude-fable-5-1": "Fable 5.1 (الأقوى)", "claude-opu
 const STD_DEFAULT = { key: "", model: "claude-fable-5-1", quick: "claude-sonnet-5-5" };
 const stdCfg = () => { try { const c = Object.assign({}, STD_DEFAULT, JSON.parse(localStorage.getItem("lockday:api") || "{}")); if (!STD_MODELS[c.model]) c.model = STD_DEFAULT.model; if (!STD_MODELS[c.quick]) c.quick = STD_DEFAULT.quick; return c; } catch (e) { return Object.assign({}, STD_DEFAULT); } };
 const saveStdCfg = c => { try { localStorage.setItem("lockday:api", JSON.stringify(c)); } catch (e) {} };
+// phone photos are far over the API's per-image limit, so scale them down first
+async function shrink(blob, max) {
+  max = max || 1536;
+  try {
+    const bmp = await createImageBitmap(blob);
+    const sc = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    if (sc === 1 && blob.size < 3.5e6) { bmp.close && bmp.close(); return blob; }
+    const cv = document.createElement("canvas");
+    cv.width = Math.round(bmp.width * sc); cv.height = Math.round(bmp.height * sc);
+    cv.getContext("2d").drawImage(bmp, 0, 0, cv.width, cv.height); bmp.close && bmp.close();
+    const out = await new Promise(r => cv.toBlob(r, "image/jpeg", 0.82));
+    return out && out.size ? out : blob;
+  } catch (e) { return blob; }
+}
 const blobToB64 = blob => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1] || ""); fr.onerror = rej; fr.readAsDataURL(blob); });
 const apiErr = (status, body) => ({ code: status === 401 || status === 403 ? "not_granted" : status === 429 ? "rate_limited" : status === 400 ? "invalid_request" : "upstream_error", message: (body && body.error && body.error.message) || ("HTTP " + status) });
 function makeStandaloneSample() {
@@ -2812,7 +2841,7 @@ function makeStandaloneSample() {
     const turns = typeof input === "string" ? [{ role: "user", content: input }] : input.map(m => ({ role: m.role, content: m.content }));
     if (opts.images && opts.images.length) {
       const last = turns[turns.length - 1], blocks = [];
-      for (const im of opts.images) blocks.push({ type: "image", source: { type: "base64", media_type: im.type || "image/jpeg", data: await blobToB64(im) } });
+      for (const im of opts.images) { const sm = await shrink(im); blocks.push({ type: "image", source: { type: "base64", media_type: sm.type || "image/jpeg", data: await blobToB64(sm) } }); }
       blocks.push({ type: "text", text: last.content }); last.content = blocks;
     }
     const tools = (opts.tools || []).map(t => ({ name: t.name, description: t.description, input_schema: t.inputSchema || { type: "object", properties: {} } }));
@@ -3305,8 +3334,8 @@ function setVal(scope, f, v) {
   return "it";
 }
 
-const VT_ACTS = new Set(["done", "undo", "expand", "tab", "del-yes", "postpone", "rv-add", "rv-remove", "play", "pause", "ai-open",
-  "view", "m-sel", "m-tasks", "ws-day", "sub-tg", "fg", "focus", "log-day", "skin", "btab", "b-day", "b-done", "pj-open", "pj-stage", "pj-done", "pj-del-yes", "wt-status", "wt-expand", "wt-del-yes", "ws-filter", "ws-team", "wr-add", "ws-member-clear", "m-del-yes"]);
+const VT_ACTS = new Set(["done", "undo", "expand", "tab", "del-yes", "postpone", "rv-remove", "play", "pause", "ai-open",
+  "view", "m-sel", "m-tasks", "ws-day", "sub-tg", "fg", "focus", "log-day", "skin", "btab", "b-day", "b-done", "pj-open", "pj-stage", "pj-done", "pj-del-yes", "wt-status", "wt-expand", "wt-del-yes", "ws-filter", "ws-team", "ws-member-clear", "m-del-yes"]);
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-act]"); if (!b) return;
   const act = b.dataset.act;
